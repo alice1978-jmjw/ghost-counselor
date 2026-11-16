@@ -60,7 +60,7 @@ export async function getFaceLandmarker() {
     // 1. Resolve Wasm Fileset (local first, fallback to CDN)
     let filesetResolver;
     try {
-      filesetResolver = await FilesetResolver.forVisionTasks('/wasm');
+      filesetResolver = await FilesetResolver.forVisionTasks('./wasm');
     } catch (wasmErr) {
       console.warn('[FaceLandmarker] Local wasm path failed, using CDN wasm:', wasmErr);
       filesetResolver = await FilesetResolver.forVisionTasks(
@@ -70,7 +70,7 @@ export async function getFaceLandmarker() {
 
     // 2. Create FaceLandmarker options (local model first, fallback to Google Cloud CDN)
     const modelCandidates = [
-      '/models/face_landmarker.task',
+      './models/face_landmarker.task',
       'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
     ];
 
