@@ -1,0 +1,18 @@
+{
+  "name": "Verify 3D Assessment De-biasing & Scrying Mirror Privacy",
+  "description": "Kiro agent hook that triggers when the 3D Crisis Simulator or Scrying Mirror computer-vision modules are modified to enforce psychometric de-biasing, hybrid click/tap + keyboard controls, and on-device webcam privacy.",
+  "trigger": {
+    "type": "onFileSave",
+    "patterns": [
+      "src/components/ArcadeAssessmentModal.jsx",
+      "src/components/ArcadeAssessment3DCanvas.jsx",
+      "src/data/assessmentData.js",
+      "src/components/ScryingMirror.jsx",
+      "src/services/faceLandmarkerService.js"
+    ]
+  },
+  "action": {
+    "type": "agentPrompt",
+    "prompt": "Verify against .kiro/rules.md and .kiro/specs/ghost-career-counselor/requirements.md that: (1) Crisis Simulator 3D hides the 4 core dimension names on the start screen behind mystery cards, rotates both goalpost colors and compass directions across scenarios in assessmentData.js, and supports both mouse click/touch tap raycasting and WASD/Arrow keys, and (2) ScryingMirror.jsx and faceLandmarkerService.js compute eyebrow, mouth, and stress telemetry 100% locally in-browser and wire cleanly into Auto-Comfort mode."
+  }
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <!-- Google Tag -->
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-MD44XGJP"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Friendly Ghost Career Counselor // Kiroween 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&family=Cinzel:wght@600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Patrick+Hand&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- MediaPipe Face Landmarker for Web (JavaScript) integrated directly into HTML -->
+    <script type="module">
+      async function setupMediaPipeFaceLandmarker() {
+        try {
+          const cdnUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
+          const tasksVision = await import(/* @vite-ignore */ cdnUrl);
+          window.FaceLandmarker = tasksVision.FaceLandmarker;
+          window.FilesetResolver = tasksVision.FilesetResolver;
+          window.dispatchEvent(new CustomEvent('mediapipe-face-landmarker-ready', { detail: tasksVision }));
+          console.log('[MediaPipe Face Landmarker] Loaded successfully in HTML via CDN');
+        } catch (err) {
+          console.warn('[MediaPipe Face Landmarker] HTML module load warning:', err);
+        }
+      }
+      setupMediaPipeFaceLandmarker();
+    </script>
+  </head>
+  <body class="bg-[#05070b] text-slate-100 antialiased selection:bg-amber-400/30 selection:text-amber-100 overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

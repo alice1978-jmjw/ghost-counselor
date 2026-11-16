@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Fog - Friendly Ghost Counselor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Left Column: 3D Ghost Sphere -->
+    <div class="column left-col">
+      <div class="header-mono">SEC. 01 // FRIENDLY GHOST COUNSELOR</div>
+      
+      <div class="sphere-container">
+        <!-- Background Glow -->
+        <div class="glow-orb"></div>
+        
+        <!-- Glass Sphere Parallax Layer -->
+        <div class="glass-sphere parallax" data-depth="0.1">
+          <!-- Floating Accessories -->
+          <div class="accessory candy parallax float-fast" data-depth="0.4" style="top: 15%; left: 10%;">🍬</div>
+          <div class="accessory skull parallax float-slow" data-depth="0.5" style="top: 70%; left: 15%;">💀</div>
+          <div class="accessory pumpkin parallax float-med" data-depth="0.3" style="bottom: 20%; right: 10%;">🎃</div>
+          <div class="badge parallax" data-depth="0.2" style="top: 5%; right: 20%;">+1,000 AURA</div>
+          
+          <!-- Ghost Core -->
+          <div class="ghost-body parallax float-slow" data-depth="0.25">
+            <div class="ghost-eyes parallax" data-depth="0.35">
+              <div class="eye"></div>
+              <div class="eye"></div>
+            </div>
+            <div class="ghost-smile parallax" data-depth="0.35"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Chat & Vibrant Buttons -->
+    <div class="column right-col">
+      <div class="header-mono">SEC. 02 // HAUNTED PHONE & CRYSTAL BALL CHAT</div>
+      
+      <!-- Dripping Slime Chat Bubble -->
+      <div class="chat-bubble">
+        <div class="chat-header">
+          <span class="icon">👻</span> Friendly Ghost Counselor
+          <span class="timestamp">Just now 🔊</span>
+        </div>
+        <p class="humanized-text">
+          Yo! Don't mind the spooky wardrobe—I'm your Friendly Ghost Counselor. 
+          Figuring out life, school stress, and your future after graduation can make anyone feel a little cooked. 
+          Zero pressure here: when you're totally locked in and losing track of time, what are you usually doing?
+        </p>
+        <!-- CSS Slime Drips -->
+        <div class="drips">
+          <div class="drip d1"></div>
+          <div class="drip d2"></div>
+          <div class="drip d3"></div>
+          <div class="drip d4"></div>
+        </div>
+      </div>
+
+      <!-- Accessible Vibrancy 3D Pills -->
+      <div class="quick-replies">
+        <div class="header-mono" style="margin-bottom: 15px;">QUICK REPLIES (TAP OR SPEAK YOUR OWN):</div>
+        <button class="pill-btn green parallax" data-depth="0.05">Making art, music, edits, or creative stuff 🎨</button>
+        <button class="pill-btn pink parallax" data-depth="0.08">Gaming, coding, or figuring out how tech works 💻</button>
+        <button class="pill-btn neon-green parallax" data-depth="0.06">Giving advice and being there for my friends 💬</button>
+        <button class="pill-btn orange parallax" data-depth="0.09">Ngl I feel completely cooked and stressed right now 🌋</button>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

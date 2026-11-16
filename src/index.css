@@ -1,0 +1,579 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #05080f;
+    color: #f1f5f9;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, .font-serif-title {
+    font-family: 'Cinzel', Georgia, serif;
+  }
+}
+
+/* ==========================================================================
+   SWISS EDITORIAL × GLASSMORPHISM DESIGN SYSTEM UTILITIES
+   ========================================================================== */
+
+/* Exposed Swiss Architectural Grid Backdrop // with warm candlelight undertones */
+.swiss-grid-bg {
+  background-size: 64px 64px;
+  background-image: 
+    linear-gradient(to right, rgba(245, 158, 11, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(245, 158, 11, 0.05) 1px, transparent 1px);
+}
+
+/* ==========================================================================
+   DARK VELVET THEMATIC DESIGN SYSTEM & GREEN FOG BILLOW
+   Plush, opulent crushed midnight velvet with directional nap sheen
+   ========================================================================== */
+
+/* Crushed Dark Velvet Background */
+.dark-velvet-bg {
+  background-color: #07040a;
+  background-image: 
+    /* Velvet nap sheen diagonal highlights */
+    linear-gradient(125deg, rgba(255, 255, 255, 0.035) 0%, transparent 28%, rgba(168, 85, 247, 0.04) 38%, transparent 52%, rgba(255, 255, 255, 0.025) 75%, transparent 100%),
+    /* Micro velvet texture stipple */
+    radial-gradient(circle at 50% 50%, rgba(30, 12, 40, 0.75) 0%, rgba(13, 6, 20, 0.95) 60%, #07030a 100%);
+}
+
+/* ==========================================================================
+   KIROWEEN 2026 THE GHOSTLY COSTUME CONTEST DESIGN SYSTEM
+   ========================================================================== */
+
+/* Rainbow Glowing Portal Ring around Costume Ghost */
+.rainbow-portal-ring {
+  background: conic-gradient(
+    from 210deg at 50% 50%,
+    #06b6d4 0deg,
+    #ec4899 75deg,
+    #facc15 160deg,
+    #a855f7 265deg,
+    #06b6d4 360deg
+  );
+  box-shadow:
+    0 0 24px rgba(168, 85, 247, 0.75),
+    0 0 45px rgba(6, 182, 212, 0.5),
+    0 0 65px rgba(236, 72, 153, 0.35);
+}
+
+/* Stitched Halloween Pill Buttons */
+.halloween-stitched-btn {
+  position: relative;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.halloween-stitched-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.06);
+}
+.halloween-stitched-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Neon Spooky Purple Frame */
+.spooky-panel-frame {
+  background: radial-gradient(ellipse at 50% 30%, #17082c 0%, #0d031a 70%, #070110 100%);
+  border: 2.5px solid #a855f7;
+  box-shadow:
+    0 0 25px rgba(168, 85, 247, 0.35),
+    inset 0 0 40px rgba(126, 34, 206, 0.15);
+  border-radius: 26px;
+}
+
+/* Plush Dark Velvet Panel with Emerald & Silver Piping */
+.glass-editorial-panel {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 0%, rgba(34, 197, 94, 0.08) 0%, transparent 70%),
+    linear-gradient(180deg, #180c22 0%, #100619 60%, #0a0310 100%);
+  backdrop-filter: blur(28px) saturate(165%);
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.6),
+    0 24px 64px -12px rgba(4, 1, 8, 0.9),
+    0 0 35px -5px rgba(34, 197, 94, 0.15);
+}
+
+/* Secondary Frosted Sub-Card with Velvet Plush Undertones */
+.glass-subcard {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(22, 10, 32, 0.75) 100%
+  );
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    0 10px 30px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* Interactive Frosted Glass Pill / Button with Velvet Trim */
+.glass-pill {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(26, 12, 38, 0.8) 100%
+  );
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 0 15px rgba(34, 197, 94, 0.12);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-pill:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.2) 0%,
+    rgba(168, 85, 247, 0.18) 100%
+  );
+  border-color: rgba(74, 222, 128, 0.65);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+    0 0 25px rgba(34, 197, 94, 0.35);
+}
+
+/* ==========================================================================
+   GREEN FOG PARTICLES BURST ANIMATION
+   Volumetric expanding ectoplasmic smoke puff
+   ========================================================================== */
+@keyframes greenFogBillow {
+  0% {
+    transform: translate(0, 0) scale(0.3) rotate(0deg);
+    opacity: 0.95;
+  }
+  45% {
+    opacity: 0.8;
+    transform: translate(calc(var(--fog-vx) * 0.65), calc(var(--fog-vy) * 0.65)) scale(1.6) rotate(var(--fog-rotate));
+    filter: blur(10px);
+  }
+  100% {
+    transform: translate(var(--fog-vx), calc(var(--fog-vy) - 22px)) scale(2.5) rotate(calc(var(--fog-rotate) * 1.5));
+    opacity: 0;
+    filter: blur(16px);
+  }
+}
+
+/* ==========================================================================
+   FLICKERING CANDLELIGHT AMBIANCE & JELLY SQUISH PHYSICS
+   ========================================================================== */
+
+/* Flickering living candle flame animation */
+@keyframes candleFlicker {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 35px rgba(245, 158, 11, 0.45));
+  }
+  15% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 24px rgba(234, 88, 12, 0.35));
+  }
+  30% {
+    opacity: 0.97;
+    filter: drop-shadow(0 0 42px rgba(251, 191, 36, 0.55));
+  }
+  45% {
+    opacity: 0.84;
+    filter: drop-shadow(0 0 28px rgba(217, 119, 6, 0.38));
+  }
+  60% {
+    opacity: 1;
+    filter: drop-shadow(0 0 48px rgba(251, 191, 36, 0.65));
+  }
+  75% {
+    opacity: 0.86;
+    filter: drop-shadow(0 0 30px rgba(234, 88, 12, 0.4));
+  }
+  90% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 38px rgba(245, 158, 11, 0.5));
+  }
+}
+
+@keyframes candleGlowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  35% {
+    transform: scale(1.08);
+    opacity: 0.65;
+  }
+  70% {
+    transform: scale(0.96);
+    opacity: 0.38;
+  }
+}
+
+.candlelight-flicker {
+  animation: candleFlicker 4.8s ease-in-out infinite;
+}
+
+.candle-glow-pulse {
+  animation: candleGlowPulse 5.5s ease-in-out infinite;
+}
+
+/* Jelly squish & wobble elastic oscillation */
+@keyframes jellyWobble {
+  0% {
+    transform: scale(1.22, 0.74) translateY(4px);
+  }
+  25% {
+    transform: scale(0.84, 1.20) translateY(-3px);
+  }
+  50% {
+    transform: scale(1.12, 0.90) translateY(1.5px);
+  }
+  70% {
+    transform: scale(0.95, 1.05) translateY(-0.8px);
+  }
+  85% {
+    transform: scale(1.02, 0.98) translateY(0.3px);
+  }
+  100% {
+    transform: scale(1, 1) translateY(0);
+  }
+}
+
+.animate-jelly-squish {
+  animation: jellyWobble 0.65s cubic-bezier(0.25, 1.4, 0.5, 1) forwards;
+}
+
+/* Translucent Jelly Button Base Styling */
+.jelly-btn {
+  position: relative;
+  border-radius: 1rem;
+  cursor: pointer;
+  user-select: none;
+  transform-origin: center bottom;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.jelly-btn:active, .jelly-btn.is-pressed {
+  transform: scale(1.22, 0.72) translateY(4px) !important;
+  transition: transform 0.06s cubic-bezier(0.1, 0.9, 0.2, 1) !important;
+}
+
+/* Volumetric Drifting Fog Layers */
+@keyframes fogDriftRight {
+  0% {
+    transform: translate3d(-15%, 0, 0) scale(1.08);
+  }
+  50% {
+    transform: translate3d(8%, -3%, 0) scale(1.14);
+  }
+  100% {
+    transform: translate3d(-15%, 0, 0) scale(1.08);
+  }
+}
+
+@keyframes fogDriftLeft {
+  0% {
+    transform: translate3d(12%, 2%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-12%, -2%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(12%, 2%, 0) scale(1.1);
+  }
+}
+
+@keyframes fogSwirl {
+  0%, 100% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: translate3d(-6%, 4%, 0) scale(1.12);
+    opacity: 0.9;
+  }
+}
+
+/* Dramatic Ghost Emergence & Zoom-Out Sequence */
+@keyframes ghostEmergeAndZoomOut {
+  0% {
+    opacity: 0;
+    transform: scale(0.15) translateY(80px);
+    filter: blur(24px) brightness(2.2);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.85) translateY(-10px);
+    filter: blur(2px) brightness(1.6) drop-shadow(0 0 60px rgba(34, 211, 238, 0.9));
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.35) translateY(-4px);
+    filter: blur(0px) brightness(1.25) drop-shadow(0 0 40px rgba(34, 211, 238, 0.65));
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+    filter: blur(0px) brightness(1) drop-shadow(0 0 25px rgba(34, 211, 238, 0.4));
+  }
+}
+
+.animate-fog-right {
+  animation: fogDriftRight 26s ease-in-out infinite;
+}
+
+.animate-fog-left {
+  animation: fogDriftLeft 32s ease-in-out infinite;
+}
+
+.animate-fog-swirl {
+  animation: fogSwirl 18s ease-in-out infinite;
+}
+
+.animate-ghost-emerge {
+  animation: ghostEmergeAndZoomOut 3.4s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+/* Custom Scrollbar for Chat */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.5);
+}
+
+/* Print styles for Soul Dossier */
+@media print {
+  body {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   3D PARALLAX & DRIPPING SLIME EFFECTS
+   ========================================================================== */
+
+/* Dripping Slime Animation */
+@keyframes drip {
+  0% {
+    height: 0;
+    opacity: 0;
+  }
+  30% {
+    height: 15px;
+    opacity: 1;
+  }
+  100% {
+    height: 35px;
+    opacity: 0.8;
+  }
+}
+
+@keyframes drip-slow {
+  0% {
+    height: 0;
+    opacity: 0;
+  }
+  35% {
+    height: 20px;
+    opacity: 1;
+  }
+  100% {
+    height: 45px;
+    opacity: 0.75;
+  }
+}
+
+.drips {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 50px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.drip {
+  position: absolute;
+  width: 8px;
+  background: linear-gradient(180deg, #a855f7 0%, #7c3aed 100%);
+  border-radius: 0 0 50% 50%;
+  filter: blur(1px);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+}
+
+.drip.d1 {
+  left: 15%;
+  animation: drip 3s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.drip.d2 {
+  left: 40%;
+  width: 6px;
+  animation: drip-slow 4s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.drip.d3 {
+  left: 65%;
+  animation: drip 3.5s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.drip.d4 {
+  left: 85%;
+  width: 7px;
+  animation: drip-slow 4.2s ease-in-out infinite;
+  animation-delay: 2.2s;
+}
+
+/* 3D Pill Button Styles with Heavy Shadows */
+.pill-btn {
+  position: relative;
+  padding: 16px 24px;
+  border-radius: 9999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.pill-btn.green {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  color: #0f172a;
+  box-shadow: 0 0 25px rgba(132, 204, 22, 0.6), 0 0 50px rgba(132, 204, 22, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pill-btn.green:hover {
+  background: linear-gradient(135deg, #a3e635 0%, #84cc16 100%);
+  box-shadow: 0 0 35px rgba(132, 204, 22, 0.8), 0 0 60px rgba(132, 204, 22, 0.4), 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(1.02) translateY(-2px);
+}
+
+.pill-btn.pink {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  color: white;
+  box-shadow: 0 0 25px rgba(236, 72, 153, 0.6), 0 0 50px rgba(236, 72, 153, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pill-btn.pink:hover {
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+  box-shadow: 0 0 35px rgba(236, 72, 153, 0.8), 0 0 60px rgba(236, 72, 153, 0.4), 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(1.02) translateY(-2px);
+}
+
+.pill-btn.neon-green {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+  color: #0f172a;
+  box-shadow: 0 0 25px rgba(132, 204, 22, 0.6), 0 0 50px rgba(132, 204, 22, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pill-btn.neon-green:hover {
+  background: linear-gradient(135deg, #a3e635 0%, #84cc16 100%);
+  box-shadow: 0 0 35px rgba(132, 204, 22, 0.8), 0 0 60px rgba(132, 204, 22, 0.4), 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(1.02) translateY(-2px);
+}
+
+.pill-btn.orange {
+  background: linear-gradient(135deg, #fb923c 0%, #ec4899 100%);
+  color: white;
+  box-shadow: 0 0 25px rgba(251, 146, 60, 0.6), 0 0 50px rgba(251, 146, 60, 0.3), 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pill-btn.orange:hover {
+  background: linear-gradient(135deg, #fdba74 0%, #f472b6 100%);
+  box-shadow: 0 0 35px rgba(251, 146, 60, 0.8), 0 0 60px rgba(251, 146, 60, 0.4), 0 6px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(1.02) translateY(-2px);
+}
+
+/* Floating animation variants */
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(2deg); }
+}
+
+@keyframes float-med {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-1deg); }
+}
+
+.float-fast {
+  animation: float-fast 3s ease-in-out infinite;
+}
+
+.float-med {
+  animation: float-med 4.5s ease-in-out infinite;
+}
+
+/* Humanized Text Style (Patrick Hand) */
+.humanized-text {
+  font-family: 'Patrick Hand', cursive;
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: #f1f5f9;
+}
+
+/* Space Mono Headers */
+.header-mono {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #94a3b8;
+}
+
+/* Perspective container for 3D transforms */
+.perspective-container {
+  perspective: 1500px;
+  transform-style: preserve-3d;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* ==========================================================================
+   SOUNDWAVE VISUALIZER BOUNCE ANIMATION
+   Powers the SoundwaveVisualizer bars in the new two-panel chat layout.
+   ========================================================================== */
+@keyframes soundwaveBounce {
+  0%   { height: 4px;  opacity: 0.6; }
+  100% { height: 36px; opacity: 1;   }
+}
+
+/* ==========================================================================
+   NEON WAVE PATH SHIFT ANIMATION
+   Scrolls the SVG sine-wave paths horizontally when voice is active.
+   ========================================================================== */
+@keyframes waveShift {
+  0%   { transform: translateX(0);    }
+  100% { transform: translateX(-80px); }
+}

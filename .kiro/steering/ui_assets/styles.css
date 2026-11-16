@@ -1,0 +1,83 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #0f0f13, #2a2a35);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    perspective: 1000px;
+}
+
+/* Base fog atmosphere */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.85) 100%);
+    z-index: -1;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 50px 40px;
+    width: 380px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6);
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+}
+
+/* 3D Depth translations for inner elements */
+.glass-card h1 {
+    font-size: 2.8rem;
+    margin-bottom: 15px;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+    transform: translateZ(60px);
+}
+
+.glass-card p {
+    font-size: 1.1rem;
+    margin-bottom: 35px;
+    color: #b3b3b3;
+    transform: translateZ(40px);
+}
+
+.action-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 12px 30px;
+    border-radius: 30px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.3s ease;
+    transform: translateZ(50px);
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateZ(50px) scale(1.05);
+    box-shadow: 0 5px 15px rgba(255, 255, 255, 0.1);
+}

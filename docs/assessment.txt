@@ -1,0 +1,147 @@
+# Project Specification: 2D Arcade Career Assessment Game
+
+## Context & Objective
+You are an expert game developer and frontend engineer. Your task is to build a 2D HTML5 Canvas web application that serves as a gamified career assessment. The target audience is 15-20 year olds. 
+
+Instead of a traditional quiz, the assessment is disguised as a top-down 2D arcade game. The player controls an avatar in a room. A scenario is presented, and the player must physically move their avatar into one of four colored zones to make their choice.
+
+## Technical Constraints
+*   **Tech Stack:** Vanilla HTML5, CSS3, and JavaScript (Canvas API). No external game engines (like Phaser) to keep the bundle lightweight and easily embeddable.
+*   **Controls:** WASD or Arrow Keys for desktop movement. (Optional: Add a virtual on-screen joystick for mobile compatibility).
+*   **State Management:** The game must manage three states: `START_SCREEN`, `PLAYING_SCENARIO`, and `END_SCREEN`.
+*   **Scoring:** The game must track the number of times the player chooses each of the four traits: `Maker`, `Architect`, `Catalyst`, and `Visionary`.
+
+## Game Mechanics & Flow
+1.  **Start Screen:** 
+    *   Displays the game title: "Crisis Simulator".
+    *   Shows a brief instruction: "Use WASD/Arrow keys to move. Run to the zone that matches your instinct."
+    *   A "Start Game" button to initiate the loop.
+2.  **The Core Loop (Playing):**
+    *   The player avatar starts in the center of the canvas.
+    *   The current `scenario text` is displayed prominently at the top of the screen.
+    *   There are four distinct collision zones (e.g., colored squares or doors) at the Top, Bottom, Left, and Right of the canvas.
+    *   Each zone displays short `action text` corresponding to a choice.
+    *   When the player's avatar collides with a zone, a visual flash occurs, the choice's associated trait is tallied, and the next scenario loads immediately, resetting the player to the center.
+3.  **The End Screen (Loot Drop Reveal):**
+    *   After 10 scenarios, the canvas transitions to the results screen.
+    *   The system calculates the highest scored trait (or combination of top two).
+    *   Displays a "Character Unlock" style result (e.g., "You are: The Systems Master") with a short description of their dominant archetype.
+
+## Game Data: The 10 Scenarios
+Integrate the following JSON array into the game logic. Each object contains the scenario and the four choices mapped to their respective traits and designated screen positions.
+
+```json
+[
+  {
+    "id": 1,
+    "scenario": "The School Project Rescue: The night before a massive group project is due, everything is a mess. Your group is panicking. What is your immediate reaction?",
+    "zones": [
+      { "position": "top", "text": "Physically build the prototype.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Fix the formatting & logic.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Calm everyone & present it.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Make the slides look amazing.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 2,
+    "scenario": "The Food Truck Rush: A massive crowd shows up at your food truck. Orders are piling up fast. Where do you jump in?",
+    "zones": [
+      { "position": "top", "text": "Get on the grill.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Organize the order system.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Keep waiting customers happy.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Draw a cool Sold Out sign.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 3,
+    "scenario": "The E-Sports Tournament: Your community is hosting a gaming tournament. Which job do you want?",
+    "zones": [
+      { "position": "top", "text": "Set up PCs & cables.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Manage brackets & scores.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Hype crowd & interview.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Design logos & stream overlays.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 4,
+    "scenario": "The Broken Gadget: A friend drops an expensive drone and it breaks into pieces. How do you help?",
+    "zones": [
+      { "position": "top", "text": "Try to physically piece it together.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Troubleshoot & find repair costs.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Comfort your friend.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Edit a funny video about the disaster.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 5,
+    "scenario": "The Weekend Road Trip: You and your friends are taking a road trip. What is your main responsibility?",
+    "zones": [
+      { "position": "top", "text": "Pack trunk & drive.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Map route & calculate tolls.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Manage playlist & energy.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Plan stops for scenic photos.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 6,
+    "scenario": "The Zombie Apocalypse Survival: Your group finds an abandoned warehouse to use as a safe house. What is your first move?",
+    "zones": [
+      { "position": "top", "text": "Board up doors & windows.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Count & ration the food.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Stop panicking & solve arguments.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Sketch a map of danger zones.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 7,
+    "scenario": "The Pop-Up Market Stall: Your class is running a stall at a weekend street market. How do you contribute?",
+    "zones": [
+      { "position": "top", "text": "Build the physical tent.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Handle pricing & track profits.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Pitch product to people walking by.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Arrange the product display.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 8,
+    "scenario": "The Mystery Box Challenge: You get a box with duct tape, a battery, a buzzer, and wires. What do you do?",
+    "zones": [
+      { "position": "top", "text": "Tape things to make a sound.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Figure out circuit logic first.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Ask a friend to solve it together.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Sculpt something visually cool.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 9,
+    "scenario": "The Neighborhood Store Upgrade: A messy shop hires you to help modernize. Where do you start?",
+    "zones": [
+      { "position": "top", "text": "Fix broken shelves & clean.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Type receipts into a spreadsheet.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Greet regular customers.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Redo front window display.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  },
+  {
+    "id": 10,
+    "scenario": "The Escape Room: You are locked in an escape room and the clock is ticking. What is your role?",
+    "zones": [
+      { "position": "top", "text": "Fiddle with locks & furniture.", "trait": "Maker", "color": "#E74C3C" },
+      { "position": "bottom", "text": "Decode math & logic puzzles.", "trait": "Architect", "color": "#3498DB" },
+      { "position": "left", "text": "Keep team communicating.", "trait": "Catalyst", "color": "#F1C40F" },
+      { "position": "right", "text": "Look for visual clues & colors.", "trait": "Visionary", "color": "#9B59B6" }
+    ]
+  }
+]
+
+Results Evaluation Logic
+At the end of the 10 scenarios, determine the trait with the highest count. Display the corresponding archetype on the End Screen:
+
+Highest Maker: "The Tactical Builder" - You thrive on physical execution, prototyping, and getting your hands dirty to solve immediate problems. (Recommended fields: Engineering, Culinary, Hardware, Trades).
+
+Highest Architect: "The Systems Master" - You excel at structuring chaos, analyzing data, and building logical frameworks. (Recommended fields: Software Dev, Logistics, Data Analysis, Finance).
+
+Highest Catalyst: "The Frontline Leader" - You are a natural at human interaction, empathy, and managing team dynamics under pressure. (Recommended fields: Hospitality, Healthcare, Counseling, Sales).
+
+Highest Visionary: "The Creative Director" - You focus on aesthetics, storytelling, and designing the bigger picture. (Recommended fields: Digital Design, Marketing, Media, Arts).(If there is a tie, concatenate the two archetypes, e.g., "The Tactical Builder / Systems Master").
+
