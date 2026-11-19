@@ -39,14 +39,36 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & Environment Setup
 
-```bash
-npm install
-npm run dev
-```
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-Then open **http://localhost:5173/** in your browser.
+2. **Configure Environment (Optional)**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   * `VITE_FORMSPREE_FORM_ID`: Your [Formspree](https://formspree.io) form ID to capture waitlist subscriber emails. *(If left blank, the gate runs in local simulation mode for instant testing!)*
+   * `VITE_GEMINI_API_KEY`: Optional Gemini API key for Layer 1 AI responses.
+
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+   Open **http://localhost:5173/** in your browser.
+
+---
+
+## 🔑 Spectral Gate Access
+
+The sanctuary gate provides two access pathways:
+* **Join Waitlist & Guest Pass**: Enter any valid email to join the waitlist (powered by Formspree) and gain immediate access as a **Guest Seeker**.
+* **Passcode Login**:
+  * **Judge**: Access ID: `judge` / Passcode: `kiroween2026`
+  * **Dev**: Access ID: `dev` / Passcode: `wareprise`
 
 ---
 
