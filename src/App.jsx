@@ -15,7 +15,12 @@ import {
   CameraOff,
   Gamepad2,
   Lock,
-  LogOut
+  LogOut,
+  Mail,
+  CheckCircle2,
+  ArrowLeft,
+  RefreshCw,
+  Send
 } from 'lucide-react';
 import FogOverlay from './components/FogOverlay';
 import GhostSphere3D from './components/GhostSphere3D';
@@ -50,12 +55,21 @@ import {
   VOICE_PRESETS
 } from './utils/soundEffects';
 import { requestWebcamStream } from './services/faceLandmarkerService';
+import { submitGuestAccessEmail, verifyConfirmationCode } from './services/waitlistService';
 
 export default function App() {
   const [authRole, setAuthRole] = useState(() => sessionStorage.getItem('ghost_auth_role') || '');
   const [loginId, setLoginId] = useState('');
   const [loginPasscode, setLoginPasscode] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  // Spectral Gate (Passcode & Guest Access)
+  const [gateTab, setGateTab] = useState('passcode'); // 'passcode' | 'waitlist'
+  const [guestFirstName, setGuestFirstName] = useState(() => sessionStorage.getItem('ghost_user_name') || '');
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistError, setWaitlistError] = useState('');
+  const [waitlistSuccessMsg, setWaitlistSuccessMsg] = useState('');
   const [phase, setPhase] = useState('landing');
   const [mood, setMood] = useState('welcoming');
 
@@ -151,6 +165,58 @@ export default function App() {
     return () => {
       stopGhostSpeech();
     };
+  }, []);
+
+  // 1-Click Email Confirmation Link Handler (?access_gate=confirmed or ?key=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const accessGate = params.get('access_gate') || params.get('access');
+      const confirmedEmail = params.get('email') || params.get('confirm_email');
+      const urlFirstName = params.get('firstname') || params.get('name') || params.get('FIRSTNAME');
+      const key =
+        params.get('key') ||
+        params.get('code') ||
+        params.get('confirm_code') ||
+        params.get('token') ||
+        params.get('confirm_token');
+      const storedToken = sessionStorage.getItem('ghost_pending_token');
+
+      const isKeyValid = key && verifyConfirmationCode(key, storedToken);
+
+      if (accessGate === 'confirmed' || isKeyValid) {
+        const guestEmail = confirmedEmail || sessionStorage.getItem('ghost_pending_email') || 'confirmed_guest';
+        const storedName = urlFirstName || sessionStorage.getItem('ghost_pending_name') || sessionStorage.getItem('ghost_user_name');
+        sessionStorage.setItem('ghost_auth_role', 'Guest');
+        sessionStorage.setItem('ghost_user_email', guestEmail);
+        if (storedName) {
+          sessionStorage.setItem('ghost_user_name', storedName);
+          setGuestFirstName(storedName);
+        }
+        sessionStorage.removeItem('ghost_pending_token');
+        sessionStorage.removeItem('ghost_pending_email');
+        sessionStorage.removeItem('ghost_pending_name');
+        setAuthRole('Guest');
+        soundEngine.playTraitChime('passion');
+
+        // Analytics
+        try {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({
+            event: 'counselor_email_link_confirmed',
+            user_role: 'Guest',
+            email: guestEmail,
+            timestamp: new Date().toISOString()
+          });
+        } catch {
+          // Ignore
+        }
+
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
   }, []);
 
   useEffect(() => {
@@ -752,11 +818,77 @@ export default function App() {
     completeRoleLogin(matchedRole);
   };
 
+  const handleGuestAccessSubmit = async (e) => {
+    e.preventDefault();
+    if (waitlistLoading) return;
+
+    soundEngine.playClickSound();
+    setWaitlistError('');
+    setWaitlistSuccessMsg('');
+    setWaitlistLoading(true);
+
+    const result = await submitGuestAccessEmail(waitlistEmail, { firstName: guestFirstName });
+
+    if (!result.success) {
+      soundEngine.playClickSound();
+      setWaitlistLoading(false);
+      setWaitlistError(result.error);
+      return;
+    }
+
+    setWaitlistLoading(false);
+    setWaitlistSuccessMsg('✨ Welcome to the Sanctuary! Parting the mist now...');
+    soundEngine.playTraitChime('passion');
+
+    const confirmedEmail = result.email || waitlistEmail;
+    const confirmedName = result.firstName || guestFirstName;
+
+    sessionStorage.setItem('ghost_auth_role', 'Guest');
+    sessionStorage.setItem('ghost_user_email', confirmedEmail);
+    if (confirmedName) {
+      sessionStorage.setItem('ghost_user_name', confirmedName);
+      setGuestFirstName(confirmedName);
+    }
+
+    // 1. Analytics
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'counselor_guest_access_granted',
+        user_role: 'Guest',
+        email: confirmedEmail,
+        first_name: confirmedName,
+        signup_timestamp: new Date().toISOString()
+      });
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'sign_up', {
+          method: 'FormspreeGuestAccess',
+          user_role: 'Guest'
+        });
+      }
+      window.history.replaceState(null, '', '#role=guest');
+    } catch {
+      // Ignore
+    }
+
+    // 2. Server access ping
+    fetch(`./?auth_event=guest_access&email=${encodeURIComponent(confirmedEmail)}&t=${Date.now()}`, {
+      method: 'GET',
+      cache: 'no-store'
+    }).catch(() => {});
+
+    setTimeout(() => {
+      setAuthRole('Guest');
+    }, 600);
+  };
+
   const handleLogout = () => {
     soundEngine.playClickSound();
     stopGhostSpeech(setMouthOpenness);
     setIsSpeaking(false);
     sessionStorage.removeItem('ghost_auth_role');
+    sessionStorage.removeItem('ghost_user_email');
+    sessionStorage.removeItem('ghost_user_name');
     setAuthRole('');
     setLoginId('');
     setLoginPasscode('');
@@ -772,6 +904,10 @@ export default function App() {
     setMood('welcoming');
     setIsDossierOpen(false);
     setIsArcadeOpen(false);
+    setGuestFirstName('');
+    setWaitlistEmail('');
+    setWaitlistError('');
+    setWaitlistSuccessMsg('');
     setPhase('landing');
     try {
       window.history.replaceState(null, '', window.location.pathname);
@@ -859,75 +995,189 @@ export default function App() {
               <span>SPECTRAL SANCTUARY // ACCESS GATE</span>
             </div>
 
-            <div className="mx-auto mt-5 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-600/30 to-cyan-500/20 border-2 border-purple-400/60 shadow-[0_0_25px_rgba(168,85,247,0.6)]">
+            <div className="mx-auto mt-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-600/30 to-cyan-500/20 border-2 border-purple-400/60 shadow-[0_0_25px_rgba(168,85,247,0.6)]">
               <span className="text-3xl animate-bounce" style={{ animationDuration: '3s' }}>👻</span>
             </div>
 
-            <h1 className="mt-4 font-fredoka font-black text-xl sm:text-2xl tracking-wide text-white leading-tight">
+            <h1 className="mt-3.5 font-fredoka font-black text-xl sm:text-2xl tracking-wide text-white leading-tight">
               THE FRIENDLY GHOST<br />
               <span className="bg-gradient-to-r from-[#a3e635] via-amber-300 to-purple-300 bg-clip-text text-transparent">
                 CAREER COUNSELOR
               </span>
             </h1>
 
-            <p className="mt-2 text-xs text-purple-200/80">
-              Enter your assigned Access ID and Passcode to enter the sanctuary.
-            </p>
-
-            <form onSubmit={handleLoginSubmit} className="mt-5 space-y-3.5 text-left">
-              <div>
-                <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
-                  Access ID
-                </label>
-                <input
-                  type="text"
-                  value={loginId}
-                  onChange={(e) => {
-                    setLoginId(e.target.value);
-                    if (loginError) setLoginError('');
-                  }}
-                  placeholder="Judge or Dev"
-                  autoComplete="username"
-                  required
-                  className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
-                  Passcode
-                </label>
-                <input
-                  type="password"
-                  value={loginPasscode}
-                  onChange={(e) => {
-                    setLoginPasscode(e.target.value);
-                    if (loginError) setLoginError('');
-                  }}
-                  placeholder="••••••••••••"
-                  autoComplete="current-password"
-                  required
-                  className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30"
-                />
-              </div>
-
-              {loginError && (
-                <div className="rounded-xl border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200 font-medium text-center">
-                  {loginError}
-                </div>
-              )}
-
+            {/* Gate Tab Switcher */}
+            <div className="mt-4 flex rounded-xl border border-purple-500/40 bg-[#0d031c]/90 p-1">
               <button
-                type="submit"
-                className="w-full mt-2 flex items-center justify-center gap-2 rounded-full py-3 font-fredoka font-black text-sm tracking-wider uppercase text-slate-950 shadow-[0_0_25px_rgba(163,230,53,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  background: 'linear-gradient(135deg, #a3e635 0%, #84cc16 45%, #facc15 100%)',
-                  border: '2px solid rgba(255, 255, 255, 0.5)'
+                type="button"
+                onClick={() => {
+                  soundEngine.playClickSound();
+                  setGateTab('passcode');
                 }}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                  gateTab === 'passcode'
+                    ? 'bg-purple-600/80 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
+                    : 'text-purple-300/70 hover:text-white'
+                }`}
               >
-                <span>🔮 Unlock Sanctuary</span>
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Passcode</span>
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClickSound();
+                  setGateTab('waitlist');
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                  gateTab === 'waitlist'
+                    ? 'bg-purple-600/80 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]'
+                    : 'text-purple-300/70 hover:text-white'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Guest Access</span>
+              </button>
+            </div>
+
+            {gateTab === 'waitlist' ? (
+              /* Guest Access Email Form (Formspree) */
+              <form onSubmit={handleGuestAccessSubmit} className="mt-4 space-y-3.5 text-left animate-fade-in">
+                <p className="text-xs text-purple-200/80 text-center leading-relaxed">
+                  Enter your email to gain immediate <span className="text-[#a3e635] font-bold">Guest Access</span> to test drive the counselor.
+                </p>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
+                      First Name <span className="text-purple-400/60 lowercase font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={guestFirstName}
+                      onChange={(e) => {
+                        setGuestFirstName(e.target.value);
+                        if (waitlistError) setWaitlistError('');
+                      }}
+                      placeholder="e.g. Alice"
+                      autoComplete="given-name"
+                      disabled={waitlistLoading || !!waitlistSuccessMsg}
+                      className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30 disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={waitlistEmail}
+                      onChange={(e) => {
+                        setWaitlistEmail(e.target.value);
+                        if (waitlistError) setWaitlistError('');
+                      }}
+                      placeholder="student@example.com"
+                      autoComplete="email"
+                      required
+                      disabled={waitlistLoading || !!waitlistSuccessMsg}
+                      className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30 disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                {waitlistError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200 font-medium text-center">
+                    {waitlistError}
+                  </div>
+                )}
+
+                {waitlistSuccessMsg ? (
+                  <div className="rounded-xl border border-green-500/40 bg-green-950/60 p-3 text-center animate-fade-in">
+                    <p className="text-xs text-[#a3e635] font-bold flex items-center justify-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-[#a3e635]" />
+                      <span>{waitlistSuccessMsg}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={waitlistLoading}
+                    className="w-full mt-2 flex items-center justify-center gap-2 rounded-full py-3 font-fredoka font-black text-sm tracking-wider uppercase text-slate-950 shadow-[0_0_25px_rgba(163,230,53,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                    style={{
+                      background: 'linear-gradient(135deg, #a3e635 0%, #84cc16 45%, #facc15 100%)',
+                      border: '2px solid rgba(255, 255, 255, 0.5)'
+                    }}
+                  >
+                    <span>{waitlistLoading ? '🔮 Unlocking Sanctuary...' : '✨ Enter Sanctuary as Guest'}</span>
+                  </button>
+                )}
+
+                <div className="text-[10px] text-center text-purple-300/50 pt-1 font-mono">
+                  <span>Powered by Formspree • Immediate Access • No spam</span>
+                </div>
+              </form>
+            ) : (
+              /* Passcode Form (Judge & Dev) */
+              <form onSubmit={handleLoginSubmit} className="mt-4 space-y-3.5 text-left">
+                <p className="text-xs text-purple-200/80 text-center">
+                  Enter your assigned Access ID and Passcode to enter the sanctuary.
+                </p>
+
+                <div>
+                  <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
+                    Access ID
+                  </label>
+                  <input
+                    type="text"
+                    value={loginId}
+                    onChange={(e) => {
+                      setLoginId(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    placeholder="Judge or Dev"
+                    autoComplete="username"
+                    required
+                    className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-mono text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-1">
+                    Passcode
+                  </label>
+                  <input
+                    type="password"
+                    value={loginPasscode}
+                    onChange={(e) => {
+                      setLoginPasscode(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    placeholder="••••••••••••"
+                    autoComplete="current-password"
+                    required
+                    className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30"
+                  />
+                </div>
+
+                {loginError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-950/50 px-3 py-2 text-xs text-red-200 font-medium text-center">
+                    {loginError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full mt-2 flex items-center justify-center gap-2 rounded-full py-3 font-fredoka font-black text-sm tracking-wider uppercase text-slate-950 shadow-[0_0_25px_rgba(163,230,53,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{
+                    background: 'linear-gradient(135deg, #a3e635 0%, #84cc16 45%, #facc15 100%)',
+                    border: '2px solid rgba(255, 255, 255, 0.5)'
+                  }}
+                >
+                  <span>🔮 Unlock Sanctuary</span>
+                </button>
+              </form>
+            )}
 
             {/* One-Click Judge Demo Access (Kiroween Hackathon Rule Compliance) */}
             <div className="mt-4 pt-4 border-t border-purple-500/25 space-y-2">
@@ -980,7 +1230,13 @@ export default function App() {
             {/* Active Session Role Badge + Logout */}
             <div className="absolute top-3.5 right-4 flex items-center gap-1.5">
               <span className="rounded-full border border-purple-400/40 bg-purple-950/70 px-2.5 py-0.5 font-mono text-[10px] font-bold text-amber-300">
-                {authRole === 'Judge' ? '👑 Judge' : '🛠️ Dev'}
+                {authRole === 'Judge'
+                  ? '👑 Judge'
+                  : authRole === 'Dev'
+                  ? '🛠️ Dev'
+                  : guestFirstName
+                  ? `👻 ${guestFirstName} (Guest)`
+                  : '👻 Guest Seeker'}
               </span>
               <button
                 type="button"

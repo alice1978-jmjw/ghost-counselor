@@ -55,20 +55,42 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🚀 Quick Start & Environment Setup
 
-```bash
-npm install
-npm run dev
-```
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-Then open **http://localhost:5173/** in Chrome or Edge.
+2. **Configure Environment (Optional)**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   * `VITE_FORMSPREE_FORM_ID`: Your [Formspree](https://formspree.io) form ID to capture guest access emails. *(If left blank, the gate runs in local simulation mode for instant testing!)*
+   * `VITE_GEMINI_API_KEY`: Optional Gemini API key for Layer 1 AI responses. *(If left blank, the app automatically uses zero-key free AI and offline fallback!)*
 
-To build for production:
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+   Open **http://localhost:5173/** in Chrome or Edge.
 
-```bash
-npm run build
-```
+4. **Build for production**:
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 🔑 Spectral Gate Access
+
+The sanctuary gate provides three zero-friction access pathways:
+* **One-Click Judge Access**: Click **"👑 One-Click Judge Access (No Passcode Needed)"** on the Passcode tab for instant entry.
+* **Passcode Login**:
+  * **Judge**: Access ID: `judge` / Passcode: `kiroween2026`
+  * **Dev**: Access ID: `dev` / Passcode: `wareprise`
+* **Guest Access (Formspree)**: Switch to the **Guest Access** tab and enter any valid email to enter immediately as a **Guest Seeker**.
 
 ---
 
