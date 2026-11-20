@@ -846,7 +846,7 @@ export default function App() {
                         setGuestFirstName(e.target.value);
                         if (waitlistError) setWaitlistError('');
                       }}
-                      placeholder="e.g. Alex"
+                      placeholder="e.g. Alice"
                       autoComplete="given-name"
                       disabled={waitlistLoading || !!waitlistSuccessMsg}
                       className="w-full rounded-xl border border-purple-500/40 bg-[#110622]/90 px-3.5 py-2.5 text-sm text-white placeholder-purple-300/40 focus:border-[#a3e635] focus:outline-none focus:ring-2 focus:ring-[#a3e635]/30 disabled:opacity-50"
