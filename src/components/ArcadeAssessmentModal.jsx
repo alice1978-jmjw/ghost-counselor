@@ -3,18 +3,16 @@ import {
   X,
   RotateCcw,
   Sparkles,
-  Zap,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  ShieldAlert,
-  Compass,
   Trophy,
   CheckCircle2,
   Volume2,
-  VolumeX,
-  Lock
+  Lock,
+  ScrollText,
+  Play
 } from 'lucide-react';
 import {
   ASSESSMENT_SCENARIOS,
@@ -24,10 +22,24 @@ import {
 import { soundEngine, speakGhostText, stopGhostSpeech } from '../utils/soundEffects';
 import ArcadeAssessment3DCanvas from './ArcadeAssessment3DCanvas';
 
+const ZERO_SCORES = {
+  Maker: 0,
+  Architect: 0,
+  Catalyst: 0,
+  Visionary: 0
+};
+
 export default function ArcadeAssessmentModal({
   isOpen,
   onClose,
   onSyncResult,
+  onScenarioChoice,
+  onGameComplete,
+  onSelectPathway,
+  onOpenDossier,
+  soulProfile = null,
+  dossier = null,
+  sessionResetKey = 0,
   voiceEnabled = true,
   voicePresetId = 'friendly_genz'
 }) {
@@ -38,21 +50,14 @@ export default function ArcadeAssessmentModal({
     scenarioIndexRef.current = scenarioIndex;
   }, [scenarioIndex]);
 
-  const [traitScores, setTraitScores] = useState({
-    Maker: 0,
-    Architect: 0,
-    Catalyst: 0,
-    Visionary: 0
-  });
-  const traitScoresRef = useRef({
-    Maker: 0,
-    Architect: 0,
-    Catalyst: 0,
-    Visionary: 0
-  });
+  const [traitScores, setTraitScores] = useState({ ...ZERO_SCORES });
+  const traitScoresRef = useRef({ ...ZERO_SCORES });
   useEffect(() => {
     traitScoresRef.current = traitScores;
   }, [traitScores]);
+
+  const choicesHistoryRef = useRef([]);
+  const [loggedChoicesCount, setLoggedChoicesCount] = useState(0);
 
   const [latestChoice, setLatestChoice] = useState(null);
   const [finalResult, setFinalResult] = useState(null);
@@ -68,6 +73,43 @@ export default function ArcadeAssessmentModal({
     right: false
   });
   const isTransitioningRef = useRef(false);
+
+  const onScenarioChoiceRef = useRef(onScenarioChoice);
+  const onGameCompleteRef = useRef(onGameComplete);
+  useEffect(() => {
+    onScenarioChoiceRef.current = onScenarioChoice;
+  }, [onScenarioChoice]);
+  useEffect(() => {
+    onGameCompleteRef.current = onGameComplete;
+  }, [onGameComplete]);
+
+  // Reset modal internal state whenever the global session is reset
+  useEffect(() => {
+    if (sessionResetKey === 0) return;
+    stopGhostSpeech();
+    setIsSpeakingQuestion(false);
+    traitScoresRef.current = { ...ZERO_SCORES };
+    setTraitScores({ ...ZERO_SCORES });
+    choicesHistoryRef.current = [];
+    setLoggedChoicesCount(0);
+    scenarioIndexRef.current = 0;
+    setScenarioIndex(0);
+    setLatestChoice(null);
+    setFinalResult(null);
+    setSelectedPathway(null);
+    isTransitioningRef.current = false;
+    setIsTransitioning(false);
+    setGameState('START_SCREEN');
+  }, [sessionResetKey]);
+
+  // Keep selectedPathway mirrored with soulProfile.arcade when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const syncedPathway = soulProfile?.arcade?.selectedPathway || null;
+    if (syncedPathway?.name !== selectedPathway?.name) {
+      setSelectedPathway(syncedPathway);
+    }
+  }, [isOpen, soulProfile?.arcade?.selectedPathway]);
 
   // Safe index clamped between 0 and 9 (total 10 scenarios)
   const safeIndex = Math.min(Math.max(0, scenarioIndex), ASSESSMENT_SCENARIOS.length - 1);
@@ -86,7 +128,6 @@ export default function ArcadeAssessmentModal({
     });
   }, [currentScenario, safeIndex, voiceEnabled, voicePresetId]);
 
-  // Toggle question voice read-out on demand
   const handleToggleReadQuestion = () => {
     if (isSpeakingQuestion) {
       stopGhostSpeech();
@@ -96,7 +137,6 @@ export default function ArcadeAssessmentModal({
     }
   };
 
-  // Automatically read out the crisis question when scenario changes
   useEffect(() => {
     if (gameState === 'PLAYING_SCENARIO' && isOpen && autoVoiceNarration && voiceEnabled) {
       const timer = setTimeout(() => {
@@ -110,24 +150,31 @@ export default function ArcadeAssessmentModal({
     }
   }, [gameState, scenarioIndex, isOpen, autoVoiceNarration, voiceEnabled, readCurrentQuestion]);
 
-  // Start the assessment game
+  // Start a fresh 10-scenario simulation run
   const handleStartGame = () => {
     soundEngine.playArcadeStep();
     stopGhostSpeech();
     setIsSpeakingQuestion(false);
-    const zeroScores = {
-      Maker: 0,
-      Architect: 0,
-      Catalyst: 0,
-      Visionary: 0
-    };
+    const zeroScores = { ...ZERO_SCORES };
     traitScoresRef.current = zeroScores;
     setTraitScores(zeroScores);
+    choicesHistoryRef.current = [];
+    setLoggedChoicesCount(0);
     scenarioIndexRef.current = 0;
     setScenarioIndex(0);
     setLatestChoice(null);
     setFinalResult(null);
     setSelectedPathway(null);
+    isTransitioningRef.current = false;
+    setIsTransitioning(false);
+    setGameState('PLAYING_SCENARIO');
+  };
+
+  // Resume an in-progress run without losing logged instincts
+  const handleResumeGame = () => {
+    soundEngine.playArcadeStep();
+    stopGhostSpeech();
+    setIsSpeakingQuestion(false);
     isTransitioningRef.current = false;
     setIsTransitioning(false);
     setGameState('PLAYING_SCENARIO');
@@ -172,7 +219,7 @@ export default function ArcadeAssessmentModal({
     };
   }, [isOpen, gameState]);
 
-  // Zone collision logic
+  // Zone collision logic — continuously syncs EVERY portal choice to the Soul Dossier!
   const handleZoneHit = useCallback((zone) => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
@@ -184,6 +231,7 @@ export default function ArcadeAssessmentModal({
     soundEngine.playArcadePortalWarp(zone.trait);
 
     const currentIdx = scenarioIndexRef.current;
+    const activeScenario = ASSESSMENT_SCENARIOS[currentIdx] || ASSESSMENT_SCENARIOS[0];
     const currentScores = traitScoresRef.current;
     const nextScores = {
       ...currentScores,
@@ -192,7 +240,30 @@ export default function ArcadeAssessmentModal({
     traitScoresRef.current = nextScores;
     setTraitScores(nextScores);
 
-    // Short pause for collision feedback before advancing or completing the assessment
+    const choiceRecord = {
+      scenarioId: activeScenario.id,
+      scenarioTitle: (activeScenario.scenario || '').split(':')[0]?.trim() || `Scenario ${activeScenario.id}`,
+      scenario: activeScenario.scenario,
+      choiceText: zone.text,
+      trait: zone.trait,
+      position: zone.position
+    };
+    const nextChoices = [
+      ...choicesHistoryRef.current.filter((c) => c.scenarioId !== activeScenario.id),
+      choiceRecord
+    ].sort((a, b) => a.scenarioId - b.scenarioId);
+    choicesHistoryRef.current = nextChoices;
+    setLoggedChoicesCount(nextChoices.length);
+
+    // Real-time Soul Dossier sync for EVERY single portal hit
+    if (onScenarioChoiceRef.current) {
+      onScenarioChoiceRef.current({
+        ...choiceRecord,
+        scores: nextScores,
+        isNewRun: currentIdx === 0
+      });
+    }
+
     setTimeout(() => {
       if (currentIdx < ASSESSMENT_SCENARIOS.length - 1) {
         const nextIdx = currentIdx + 1;
@@ -201,18 +272,20 @@ export default function ArcadeAssessmentModal({
         isTransitioningRef.current = false;
         setIsTransitioning(false);
       } else {
-        // All 10 questions complete: calculate final results and reveal End Screen
+        // All 10 questions complete: calculate final results and auto-sync into Soul Dossier
         const finalArchetype = calculateArchetypeResult(nextScores);
         setFinalResult(finalArchetype);
         setGameState('END_SCREEN');
         soundEngine.playArcadeUnlockFanfare();
+        if (onGameCompleteRef.current) {
+          onGameCompleteRef.current(finalArchetype, nextChoices);
+        }
         isTransitioningRef.current = false;
         setIsTransitioning(false);
       }
     }, 350);
   }, []);
 
-  // Touch pad directional push handler for mobile
   const handleTouchDirection = (dir, isDown) => {
     if (dir === 'up') keysRef.current.up = isDown;
     if (dir === 'down') keysRef.current.down = isDown;
@@ -220,7 +293,15 @@ export default function ArcadeAssessmentModal({
     if (dir === 'right') keysRef.current.right = isDown;
   };
 
-  // Sync to Soul Dossier & Close
+  // Select or toggle a Recommended Pathway card and immediately update Soul Dossier
+  const handlePathwayClick = (card, isAlreadySelected) => {
+    soundEngine.playClickSound();
+    const nextPathway = isAlreadySelected ? null : card;
+    setSelectedPathway(nextPathway);
+    onSelectPathway?.(nextPathway);
+  };
+
+  // Sync to Chat + Soul Dossier & Close
   const handleSyncAndClose = () => {
     stopGhostSpeech();
     setIsSpeakingQuestion(false);
@@ -229,7 +310,9 @@ export default function ArcadeAssessmentModal({
         ? {
             ...finalResult,
             selectedPathway,
-            recommendedFields: `${selectedPathway.name}, ${finalResult.recommendedFields}`
+            recommendedFields: finalResult.recommendedFields.includes(selectedPathway.name)
+              ? finalResult.recommendedFields
+              : `${selectedPathway.name}, ${finalResult.recommendedFields}`
           }
         : finalResult;
       onSyncResult(syncedResult);
@@ -237,7 +320,6 @@ export default function ArcadeAssessmentModal({
     onClose();
   };
 
-  // Safe modal close
   const handleClose = () => {
     stopGhostSpeech();
     setIsSpeakingQuestion(false);
@@ -245,6 +327,11 @@ export default function ArcadeAssessmentModal({
   };
 
   if (!isOpen) return null;
+
+  const hasInProgressRun =
+    !finalResult && loggedChoicesCount > 0 && loggedChoicesCount < ASSESSMENT_SCENARIOS.length;
+  const hasActiveChatDossier = Boolean(dossier && !dossier.isEmpty && dossier.hasChatActivity);
+  const topDossierCard = dossier && !dossier.isEmpty ? dossier.careerCards?.[0] : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in select-none">
@@ -258,11 +345,17 @@ export default function ArcadeAssessmentModal({
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {gameState === 'PLAYING_SCENARIO' && (
-              <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-900/60 text-purple-200 border border-purple-400/30">
-                SCENARIO {String(safeIndex + 1).padStart(2, '0')} / 10
-              </span>
+              <>
+                <span className="hidden sm:inline-flex items-center gap-1 font-mono text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-400/30">
+                  <Sparkles className="w-3 h-3" />
+                  <span>DOSSIER SYNC: {loggedChoicesCount}/10</span>
+                </span>
+                <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-900/60 text-purple-200 border border-purple-400/30">
+                  SCENARIO {String(safeIndex + 1).padStart(2, '0')} / 10
+                </span>
+              </>
             )}
             <button
               onClick={handleClose}
@@ -335,7 +428,7 @@ export default function ArcadeAssessmentModal({
           {/* STATE 1: START SCREEN */}
           {/* ══════════════════════════════════════════════════════════ */}
           {gameState === 'START_SCREEN' && (
-            <div className="w-full max-w-2xl flex flex-col items-center text-center py-4 space-y-6 animate-fade-in">
+            <div className="w-full max-w-2xl flex flex-col items-center text-center py-4 space-y-5 animate-fade-in">
               <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-purple-400/40 bg-purple-950/40 text-purple-300 text-xs font-mono font-medium">
                 <span>FULL 3D ARCADE GAME // 10 REAL-LIFE CRISES</span>
               </div>
@@ -345,11 +438,65 @@ export default function ArcadeAssessmentModal({
                   CRISIS SIMULATOR 3D
                 </h2>
                 <p className="mt-2 text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-                  Ditch the boring multi-choice survey. Steer your 3D spectral avatar into the portal that reflects your instant gut instinct when things get cooked.
+                  Ditch the boring multi-choice survey. Steer your 3D spectral avatar into the portal that reflects your instant gut instinct when things get cooked. Every decision updates your Soul Dossier in real time.
                 </p>
               </div>
 
-              {/* Visual Icon-Driven Mystery Cards */}
+              {/* Active Soul Dossier Context Banner (Strictly no dimension spoilers!) */}
+              {hasActiveChatDossier && (
+                <div className="w-full rounded-2xl border border-lime-400/35 bg-lime-950/25 px-4 py-3 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-300">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Linked to Your Active Soul Dossier</span>
+                    </div>
+                    <p className="text-xs text-slate-200">
+                      {soulProfile?.constraints?.needMoneyNow
+                        ? 'Calibrating your 3D instincts alongside your immediate-earning priority'
+                        : soulProfile?.passions?.length > 0
+                        ? `Calibrating alongside your chat passions (${soulProfile.passions.slice(0, 2).join(', ')})`
+                        : `Synced with ${dossier.chatTurnCount} Counselor Chat exchanges`}
+                      {topDossierCard ? ` • Leading match: ${topDossierCard.careerTitle}` : ''}.
+                    </p>
+                  </div>
+                  {onOpenDossier && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleClose();
+                        onOpenDossier();
+                      }}
+                      className="shrink-0 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-1.5 font-mono text-[11px] font-bold text-amber-200 hover:bg-amber-400 hover:text-slate-950 transition"
+                    >
+                      Inspect Dossier 📜
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Existing Completed Run Banner */}
+              {finalResult && (
+                <div className="w-full rounded-2xl border border-amber-400/40 bg-amber-950/25 px-4 py-3 text-left flex flex-wrap items-center justify-between gap-2.5">
+                  <div>
+                    <div className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      Synced Archetype in Soul Dossier
+                    </div>
+                    <div className="text-sm font-bold text-white mt-0.5">
+                      {finalResult.badge} {finalResult.title}
+                      {selectedPathway ? ` • ${selectedPathway.name}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGameState('END_SCREEN')}
+                    className="rounded-xl border border-amber-400/50 bg-amber-400/20 px-3 py-1.5 font-mono text-xs font-bold text-amber-200 hover:bg-amber-400 hover:text-slate-950 transition"
+                  >
+                    View Results &amp; Pathways
+                  </button>
+                </div>
+              )}
+
+              {/* Visual Icon-Driven Mystery Cards (Rule 5: NEVER expose dimension labels before completion!) */}
               <div className="w-full space-y-2.5">
                 <div className="flex items-center justify-center gap-2 text-xs font-mono text-amber-300 font-bold tracking-wider uppercase">
                   <Lock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
@@ -403,7 +550,6 @@ export default function ArcadeAssessmentModal({
                       key={card.id}
                       className={`group relative py-4 px-3 rounded-2xl border bg-gradient-to-b ${card.border} ${card.bg} ${card.glow} transition-all duration-300 hover:-translate-y-1 flex flex-col items-center justify-center text-center`}
                     >
-                      {/* Glowing Mystery Portal Emblem */}
                       <div className={`relative w-14 h-14 rounded-full border-2 border-dashed ${card.ring} flex items-center justify-center group-hover:scale-105 transition-transform`}>
                         <span className="text-2xl blur-[5px] opacity-50 select-none">
                           {card.icon}
@@ -416,12 +562,10 @@ export default function ArcadeAssessmentModal({
                         </span>
                       </div>
 
-                      {/* Minimal Mystery Title */}
                       <div className={`mt-3 font-mono text-sm font-black tracking-widest ${card.accent}`}>
                         ???
                       </div>
 
-                      {/* Visual Mystery Meter Bars */}
                       <div className="mt-2 flex items-center gap-1">
                         <span className={`w-3 h-1 rounded-full ${card.bar} opacity-80`} />
                         <span className={`w-3 h-1 rounded-full ${card.bar} opacity-40`} />
@@ -438,12 +582,28 @@ export default function ArcadeAssessmentModal({
                 <span><strong>Click / Tap</strong> any portal (or use <strong>WASD / Arrow Keys</strong>) to glide your 3D ghost into your choice.</span>
               </div>
 
-              <button
-                onClick={handleStartGame}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-600 text-white font-mono font-bold text-sm tracking-wider uppercase hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Insert Ecto-Coin & Start 3D Simulation
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+                {hasInProgressRun && (
+                  <button
+                    onClick={handleResumeGame}
+                    className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-mono font-black text-sm tracking-wider uppercase hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Resume Simulation (Q{safeIndex + 1}/10)</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleStartGame}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-600 text-white font-mono font-bold text-sm tracking-wider uppercase hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {hasInProgressRun
+                    ? 'Restart Fresh Simulation'
+                    : finalResult
+                    ? 'Replay 3D Simulation'
+                    : 'Insert Ecto-Coin & Start 3D Simulation'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -463,9 +623,19 @@ export default function ArcadeAssessmentModal({
                 />
               </div>
 
-              {/* Bottom Steering & Click / Tap / WASD / Arrow Keys Instructions */}
-              <div className="pt-1 text-center text-[11px] sm:text-xs font-mono text-purple-200/90 font-medium">
-                Steer your 3D avatar into the portal matching your choice! <strong className="text-amber-300 font-bold">Click / Tap</strong> any portal or use <strong className="text-amber-300 font-bold">WASD / Arrow Keys</strong> to move.
+              {/* Bottom Steering + Live Non-Spoiling Soul Dossier Sync Indicator */}
+              <div className="pt-1 flex flex-col items-center gap-1 text-center">
+                <div className="text-[11px] sm:text-xs font-mono text-purple-200/90 font-medium">
+                  Steer your 3D avatar into the portal matching your choice! <strong className="text-amber-300 font-bold">Click / Tap</strong> any portal or use <strong className="text-amber-300 font-bold">WASD / Arrow Keys</strong> to move.
+                </div>
+                {latestChoice && (
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-950/40 px-3 py-0.5 text-[10px] font-mono text-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>
+                      Synced to Soul Dossier ({loggedChoicesCount}/10): “{latestChoice.text}”
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Bottom Mobile Controls (Touch D-Pad) */}
@@ -514,11 +684,11 @@ export default function ArcadeAssessmentModal({
           {/* STATE 3: END SCREEN (LOOT DROP / CHARACTER UNLOCK) */}
           {/* ══════════════════════════════════════════════════════════ */}
           {gameState === 'END_SCREEN' && finalResult && (
-            <div className="w-full max-w-2xl flex flex-col items-center text-center py-4 space-y-6 animate-scale-up">
+            <div className="w-full max-w-2xl flex flex-col items-center text-center py-4 space-y-5 animate-scale-up">
               {/* Unlock Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-400/40 bg-amber-950/40 text-amber-300 text-xs font-mono font-bold tracking-wider">
                 <Trophy className="w-4 h-4 text-amber-400" />
-                <span>CHARACTER UNLOCKED // ASSESSMENT COMPLETE</span>
+                <span>CHARACTER UNLOCKED // SYNCED TO SOUL DOSSIER</span>
               </div>
 
               {/* Title & Badge */}
@@ -576,8 +746,10 @@ export default function ArcadeAssessmentModal({
                     <span className="text-xs font-mono text-purple-300 font-bold uppercase tracking-wider">
                       Recommended Pathways
                     </span>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      {selectedPathway ? `Selected: ${selectedPathway.name}` : 'Click a card to highlight'}
+                    <span className="text-[11px] font-mono text-amber-200">
+                      {selectedPathway
+                        ? `Locked to Dossier: ${selectedPathway.name}`
+                        : 'Click a card to prioritize in your Soul Dossier'}
                     </span>
                   </div>
 
@@ -593,10 +765,7 @@ export default function ArcadeAssessmentModal({
                         <button
                           key={`${card.name}-${idx}`}
                           type="button"
-                          onClick={() => {
-                            soundEngine.playClickSound();
-                            setSelectedPathway(isSelected ? null : card);
-                          }}
+                          onClick={() => handlePathwayClick(card, isSelected)}
                           className={`group p-3 rounded-xl border text-left transition-all duration-200 flex flex-col justify-between ${
                             isSelected
                               ? 'border-amber-400 bg-amber-500/15 shadow-[0_0_20px_rgba(251,191,36,0.28)] -translate-y-0.5'
@@ -626,11 +795,34 @@ export default function ArcadeAssessmentModal({
                 </div>
               </div>
 
+              {/* Live Synced Soul Dossier Top Match Preview */}
+              {topDossierCard && (
+                <div className="w-full p-4 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-950/35 via-purple-950/40 to-amber-950/35 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      <ScrollText className="w-3.5 h-3.5" />
+                      <span>Live Soul Dossier #1 Tarot Arcana Match</span>
+                    </div>
+                    <div className="mt-1 text-sm sm:text-base font-bold text-white">
+                      {topDossierCard.careerTitle}{' '}
+                      <span className="text-emerald-300 font-mono text-xs">
+                        ({topDossierCard.matchPercent}% Match • {topDossierCard.salaryRange})
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-purple-200/85">
+                      {hasActiveChatDossier
+                        ? 'Combined with your Career Counselor Chat constraints & discoveries.'
+                        : 'Ready in your Soul Dossier — discuss with your Ghost Counselor to refine with real-world constraints!'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center pt-2">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center pt-1">
                 <button
                   onClick={handleStartGame}
-                  className="w-full sm:w-auto px-6 py-3 rounded-2xl border border-purple-500/40 bg-purple-950/40 text-purple-200 font-mono text-xs font-bold hover:bg-purple-900/60 transition flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-purple-500/40 bg-purple-950/40 text-purple-200 font-mono text-xs font-bold hover:bg-purple-900/60 transition flex items-center justify-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>Replay Simulation</span>
@@ -641,7 +833,7 @@ export default function ArcadeAssessmentModal({
                   className="w-full sm:w-auto px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:shadow-[0_0_25px_rgba(251,191,36,0.5)] transition transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4 text-amber-300" />
-                  <span>Sync to Soul Dossier &amp; Return</span>
+                  <span>Sync to Chat &amp; Open Soul Dossier</span>
                 </button>
               </div>
             </div>

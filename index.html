@@ -15,18 +15,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&family=Cinzel:wght@600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Patrick+Hand&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- MediaPipe Face Landmarker for Web (JavaScript) integrated directly into HTML -->
+    <!-- MediaPipe Face Landmarker for Web (100% Local-First with CDN Fallback) -->
     <script type="module">
       async function setupMediaPipeFaceLandmarker() {
-        try {
-          const cdnUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
-          const tasksVision = await import(/* @vite-ignore */ cdnUrl);
-          window.FaceLandmarker = tasksVision.FaceLandmarker;
-          window.FilesetResolver = tasksVision.FilesetResolver;
-          window.dispatchEvent(new CustomEvent('mediapipe-face-landmarker-ready', { detail: tasksVision }));
-          console.log('[MediaPipe Face Landmarker] Loaded successfully in HTML via CDN');
-        } catch (err) {
-          console.warn('[MediaPipe Face Landmarker] HTML module load warning:', err);
+        const candidates = [
+          { label: 'local', url: new URL('./mediapipe/vision_bundle.mjs', window.location.href).href },
+          { label: 'cdn', url: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs' }
+        ];
+        for (const candidate of candidates) {
+          try {
+            const tasksVision = await import(/* @vite-ignore */ candidate.url);
+            if (tasksVision?.FaceLandmarker && tasksVision?.FilesetResolver) {
+              window.FaceLandmarker = tasksVision.FaceLandmarker;
+              window.FilesetResolver = tasksVision.FilesetResolver;
+              window.__mediapipeSource = candidate.label;
+              window.dispatchEvent(new CustomEvent('mediapipe-face-landmarker-ready', { detail: tasksVision }));
+              console.log(`[MediaPipe Face Landmarker] Loaded via ${candidate.label}`);
+              return;
+            }
+          } catch (err) {
+            console.warn(`[MediaPipe Face Landmarker] ${candidate.label} load warning:`, err);
+          }
         }
       }
       setupMediaPipeFaceLandmarker();

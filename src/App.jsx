@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Mic,
   MicOff,
@@ -37,7 +37,11 @@ import {
   INITIAL_GREETING,
   getGhostCounselorResponse,
   generatePersonalizedDossier,
-  sanitizeNoEmDashes
+  sanitizeNoEmDashes,
+  createInitialSoulProfile,
+  applyArcadeChoiceToProfile,
+  applyArcadeCompletionToProfile,
+  applyArcadePathwaySelection
 } from './services/counselorAI';
 import {
   soundEngine,
@@ -45,6 +49,7 @@ import {
   stopGhostSpeech,
   VOICE_PRESETS
 } from './utils/soundEffects';
+import { requestWebcamStream } from './services/faceLandmarkerService';
 
 export default function App() {
   const [authRole, setAuthRole] = useState(() => sessionStorage.getItem('ghost_auth_role') || '');
@@ -71,12 +76,13 @@ export default function App() {
   const [auraPoints, setAuraPoints] = useState(1000);
   const [quickPrompts, setQuickPrompts] = useState(INITIAL_GREETING.quickPrompts);
 
-  // Discovered Student Traits
-  const [traits, setTraits] = useState({
-    passions: [],
-    strengths: [],
-    weaknesses: []
-  });
+  // Unified Live Soul Profile (Single Source of Truth across Chat, Crisis Simulator 3D & Soul Dossier)
+  const [soulProfile, setSoulProfile] = useState(() => createInitialSoulProfile());
+  const soulProfileRef = useRef(soulProfile);
+  useEffect(() => {
+    soulProfileRef.current = soulProfile;
+  }, [soulProfile]);
+  const [sessionResetKey, setSessionResetKey] = useState(0);
 
   // Modals
   const [isDossierOpen, setIsDossierOpen] = useState(false);
@@ -85,8 +91,25 @@ export default function App() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('ghost_gemini_api_key') || '');
   const [tempKey, setTempKey] = useState(apiKey);
   const [isScryingActive, setIsScryingActive] = useState(false);
+  const [scryingStreamPromise, setScryingStreamPromise] = useState(null);
   const [currentVibe, setCurrentVibe] = useState(null);
   const [isVoiceSoftened, setIsVoiceSoftened] = useState(false);
+
+  const handleSetScryingActive = (nextActive) => {
+    if (nextActive) {
+      // Request webcam synchronously inside the user click gesture so browser permission prompts work reliably
+      const streamPromise = requestWebcamStream();
+      // Attach no-op rejection handler so unhandledrejection never fires before ScryingMirror awaits it
+      streamPromise.catch(() => {});
+      setScryingStreamPromise(streamPromise);
+      setIsScryingActive(true);
+    } else {
+      setIsScryingActive(false);
+      setScryingStreamPromise(null);
+      setCurrentVibe(null);
+      setIsVoiceSoftened(false);
+    }
+  };
 
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -145,6 +168,7 @@ export default function App() {
       voiceEnabled: true,
       voicePresetId: presetOverride || voicePresetId,
       isSafetyIntervention: msg.isSafetyIntervention,
+      softenVoice: Boolean(msg.softenVoice),
       onStart: () => setIsSpeaking(true),
       onEnd: () => setIsSpeaking(false),
       onMouthUpdate: (val) => setMouthOpenness(val)
@@ -164,6 +188,7 @@ export default function App() {
         voiceEnabled: true,
         voicePresetId: nextId,
         isSafetyIntervention: lastGhostMsg.isSafetyIntervention,
+        softenVoice: Boolean(lastGhostMsg.softenVoice),
         onStart: () => setIsSpeaking(true),
         onEnd: () => setIsSpeaking(false),
         onMouthUpdate: (val) => setMouthOpenness(val)
@@ -240,23 +265,32 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (overrideText) => {
+  const handleSendMessage = async (overrideText, options = {}) => {
+    const { overrideVibe = null, isFacialAutoCheck = false } = options;
     const textToSend = (overrideText ?? inputText).trim();
     if (!textToSend || isThinking) return;
 
-    if (/open my soul dossier|inspect my soul dossier/i.test(textToSend)) {
+    if (/^(open|inspect|view)\s+my\s+soul\s+dossier/i.test(textToSend)) {
       soundEngine.playDossierReveal();
       setIsDossierOpen(true);
       return;
     }
 
-    soundEngine.playClickSound();
+    if (/^(play|resume|replay)\s+crisis\s+simulator\s+3d/i.test(textToSend)) {
+      soundEngine.playClickSound();
+      setIsArcadeOpen(true);
+      return;
+    }
+
+    if (!isFacialAutoCheck) {
+      soundEngine.playClickSound();
+    }
     stopGhostSpeech(setMouthOpenness);
     setIsSpeaking(false);
     setInputText('');
     setInterimTranscript('');
 
-    const isExpressionAutoSubmit = textToSend.includes('[Observed Expression:');
+    const isExpressionAutoSubmit = isFacialAutoCheck || /\[Observed/i.test(textToSend);
 
     const userMsg = {
       id: `user-${Date.now()}`,
@@ -273,12 +307,31 @@ export default function App() {
     setMessages(updatedHistory);
     setIsThinking(true);
 
-    const activeFacial = isScryingActive ? currentVibe : null;
+    // Prefer overrideVibe passed directly from ScryingMirror to prevent stale React state race conditions
+    const activeFacial = overrideVibe || (isScryingActive ? currentVibe : null);
+    const immediateDistress = Boolean(
+      activeFacial?.isDistressed ||
+      activeFacial?.isFrustrated ||
+      activeFacial?.isAnxious ||
+      activeFacial?.isAvoidingEyeContact ||
+      (activeFacial?.stressScore && activeFacial.stressScore >= 38)
+    );
+    if (immediateDistress) {
+      setIsVoiceSoftened(true);
+      setMood('empathetic');
+    }
+
+    const activeProfile = soulProfileRef.current;
 
     const response = await getGhostCounselorResponse({
       userMessage: textToSend,
       conversationHistory: messages,
-      currentTraits: traits,
+      currentTraits: {
+        passions: activeProfile.passions,
+        strengths: activeProfile.strengths,
+        weaknesses: activeProfile.weaknesses
+      },
+      soulProfile: activeProfile,
       stageIndex,
       apiKey,
       currentVibe: activeFacial,
@@ -287,28 +340,42 @@ export default function App() {
 
     setIsThinking(false);
     setMood(response.mood || 'empathetic');
-    setTraits(response.updatedTraits);
+
+    if (response.updatedProfile) {
+      setSoulProfile((prev) => {
+        const merged = {
+          ...response.updatedProfile,
+          arcade: prev.arcade
+        };
+        soulProfileRef.current = merged;
+        return merged;
+      });
+    }
 
     const shouldSoften = Boolean(
       response.softenVoice ||
-      activeFacial?.isDistressed ||
-      activeFacial?.isFrustrated ||
-      activeFacial?.isAnxious ||
-      activeFacial?.isAvoidingEyeContact ||
-      (activeFacial?.stressScore && activeFacial.stressScore >= 38)
+      immediateDistress
     );
     setIsVoiceSoftened(shouldSoften);
 
-    const nextStage = Math.min(stageIndex + 1, 8);
+    // Do not advance the 3-Phase quiz stage on an automatic facial comfort check-in
+    const nextStage =
+      response.isSafetyIntervention || isExpressionAutoSubmit
+        ? stageIndex
+        : Math.min(stageIndex + 1, 8);
     setStageIndex(nextStage);
 
     if (!response.isSafetyIntervention) {
-      const addedCount =
-        (response.newlyAdded?.passions?.length || 0) +
-        (response.newlyAdded?.strengths?.length || 0) +
-        (response.newlyAdded?.weaknesses?.length || 0);
-      soundEngine.playTraitChime(addedCount > 0 ? 'passion' : 'strength');
-      setAuraPoints((prev) => prev + 500 + addedCount * 250);
+      if (shouldSoften && !isFacialAutoCheck) {
+        soundEngine.playCalmingTone();
+      } else if (!isFacialAutoCheck) {
+        const addedCount =
+          (response.newlyAdded?.passions?.length || 0) +
+          (response.newlyAdded?.strengths?.length || 0) +
+          (response.newlyAdded?.weaknesses?.length || 0);
+        soundEngine.playTraitChime(addedCount > 0 ? 'passion' : 'strength');
+        setAuraPoints((prev) => prev + 500 + addedCount * 250);
+      }
     }
 
     if (response.shouldUnlockDossier || nextStage >= 8) {
@@ -327,8 +394,9 @@ export default function App() {
       id: `ghost-${Date.now()}`,
       sender: 'ghost',
       hostTitle: 'Friendly Ghost Counselor',
-      mood: response.mood,
+      mood: shouldSoften ? 'empathetic' : response.mood,
       text: cleanGhostReply,
+      softenVoice: shouldSoften,
       isSafetyIntervention: response.isSafetyIntervention,
       usedGemini: response.usedGemini,
       timestamp: new Date().toLocaleTimeString([], {
@@ -353,7 +421,9 @@ export default function App() {
   };
 
   const handleAutoSubmitVibe = (vibe) => {
-    if (isThinking || isListening) return;
+    if (isThinking || isListening || !vibe) return;
+
+    setCurrentVibe(vibe);
 
     let textToSend = '';
     if (vibe.isAvoidingEyeContact && vibe.isAnxious) {
@@ -372,7 +442,7 @@ export default function App() {
       textToSend = `*Locks in with focused attention* [Observed: Focused & Locked In 👀]`;
     }
 
-    handleSendMessage(textToSend);
+    handleSendMessage(textToSend, { overrideVibe: vibe, isFacialAutoCheck: true });
   };
 
   const handleToggleVoice = () => {
@@ -390,6 +460,7 @@ export default function App() {
           voiceEnabled: true,
           voicePresetId,
           isSafetyIntervention: lastGhostMsg.isSafetyIntervention,
+          softenVoice: Boolean(lastGhostMsg.softenVoice),
           onStart: () => setIsSpeaking(true),
           onEnd: () => setIsSpeaking(false),
           onMouthUpdate: (val) => setMouthOpenness(val)
@@ -428,12 +499,17 @@ export default function App() {
     stopGhostSpeech(setMouthOpenness);
     setIsSpeaking(false);
     soundEngine.playEmergenceSound();
+    const freshProfile = createInitialSoulProfile();
+    soulProfileRef.current = freshProfile;
+    setSoulProfile(freshProfile);
+    setSessionResetKey((k) => k + 1);
     setMessages([INITIAL_GREETING]);
     setQuickPrompts(INITIAL_GREETING.quickPrompts);
-    setTraits({ passions: [], strengths: [], weaknesses: [] });
     setStageIndex(0);
     setAuraPoints(1000);
     setMood('welcoming');
+    setIsDossierOpen(false);
+    setIsArcadeOpen(false);
     setPhase('counseling');
 
     if (voiceEnabled) {
@@ -447,32 +523,67 @@ export default function App() {
     }
   };
 
-  const handleArcadeSyncResult = (result) => {
-    if (!result) return;
+  // Continuous live sync on EVERY Crisis Simulator 3D portal choice
+  const handleArcadeScenarioChoice = (choicePayload) => {
+    setSoulProfile((prev) => {
+      const next = applyArcadeChoiceToProfile(prev, choicePayload);
+      soulProfileRef.current = next;
+      return next;
+    });
+  };
 
-    // Switch to counseling view if on landing
-    setPhase('counseling');
-
-    // Merge discovered passions and strengths
-    const updatedTraits = {
-      passions: Array.from(new Set([...traits.passions, ...(result.suggestedPassions || [])])),
-      strengths: Array.from(new Set([...traits.strengths, ...(result.suggestedStrengths || [])])),
-      weaknesses: traits.weaknesses
-    };
-    setTraits(updatedTraits);
-
-    // Boost aura points & play celebratory audio
+  // Immediate auto-sync when Scenario 10 finishes in Crisis Simulator 3D
+  const handleArcadeGameComplete = (finalResult, choices) => {
+    if (!finalResult) return;
+    setSoulProfile((prev) => {
+      const next = applyArcadeCompletionToProfile(prev, finalResult, choices);
+      soulProfileRef.current = next;
+      return next;
+    });
     setAuraPoints((prev) => prev + 1500);
     soundEngine.playTraitChime('passion');
     soundEngine.playDossierReveal();
+  };
 
-    // Advance stage index to unlock Soul Dossier
-    setStageIndex((prev) => Math.max(prev, 8));
+  // Immediate live sync whenever the user clicks a Recommended Pathway card on the End Screen
+  const handleArcadePathwaySelect = (pathway) => {
+    setSoulProfile((prev) => {
+      const next = applyArcadePathwaySelection(prev, pathway);
+      soulProfileRef.current = next;
+      return next;
+    });
+  };
 
-    // Announce the archetype via Ghost Counselor message
+  // Post a strictly Soul-Dossier-aligned Crisis Simulator 3D debrief into Career Counselor Chat
+  const postArcadeDebriefToChat = (
+    profileSnapshot,
+    { openDossier = false, speakReply = true, switchToCounseling = true } = {}
+  ) => {
+    const result = profileSnapshot?.arcade?.result;
+    if (!result) return;
+
+    if (switchToCounseling) {
+      setPhase('counseling');
+    }
+
+    const syncedDossier = generatePersonalizedDossier(profileSnapshot);
+    const topCard = syncedDossier.careerCards?.[0];
+    const selectedPathway = profileSnapshot.arcade?.selectedPathway;
     const dominantKey = result.dominantTrait;
+    const dominantScore = result.scores?.[dominantKey] || 0;
+
+    const pathwayNote = selectedPathway
+      ? ` You locked **${selectedPathway.name}** as your priority pathway.`
+      : '';
+    const topMatchNote = topCard
+      ? ` Your #1 Tarot Career Arcana Match in your Soul Dossier is now **${topCard.careerTitle}** (${topCard.matchPercent}% match, ${topCard.salaryRange}).`
+      : '';
+    const constraintNote = profileSnapshot.constraints?.needMoneyNow
+      ? ' Every 90-day roadmap step stays locked to your fast-ROI, debt-smart financial constraints.'
+      : '';
+
     const cleanGhostReply = sanitizeNoEmDashes(
-      `Yo! I just analyzed your Crisis Simulator gameplay, no cap. You unlocked ${result.title} (${result.badge})! Your dominant trait is ${dominantKey} with ${result.scores?.[dominantKey] || 0}/10 instinct choices. I just synced these core strengths into your Soul Dossier. Recommended fields for your archetype: ${result.recommendedFields}. Ready to dive deeper into one of these paths?`
+      `Yo! I just synced your Crisis Simulator 3D gameplay straight into your Soul Dossier, no cap. You unlocked **${result.title}** (${result.badge}) with **${dominantKey} ${dominantScore}/10** instinct choices.${pathwayNote}${topMatchNote}${constraintNote} Recommended fields for your build: ${result.recommendedFields}. Want to walk through your 90-day roadmap for ${topCard ? topCard.careerTitle : 'your top match'}?`
     );
 
     const ghostMsg = {
@@ -489,17 +600,35 @@ export default function App() {
       })
     };
 
+    setMood('inspired');
     setMessages((prev) => [...prev, ghostMsg]);
 
-    const primaryField = (result.recommendedFields || 'your path').split(',')[0].trim();
+    // Mark this completed run as debriefed so closing via X doesn't duplicate it
+    setSoulProfile((prev) => {
+      const next = {
+        ...prev,
+        arcade: {
+          ...prev.arcade,
+          debriefedRunId: prev.arcade?.completedAt || Date.now()
+        }
+      };
+      soulProfileRef.current = next;
+      return next;
+    });
+
+    const primaryField =
+      selectedPathway?.name ||
+      topCard?.careerTitle?.split('&')[0]?.trim() ||
+      (result.recommendedFields || 'your path').split(',')[0].trim();
+
     setQuickPrompts([
+      `Walk me through my 90-day plan for ${primaryField} 🎯`,
       `Tell me more about ${result.title} careers! 💼`,
       `Show high-paying paths in ${primaryField} 💸`,
-      `Open my Soul Dossier & show matches 📜✨`,
-      `What 90-day plan fits my archetype? 🎯`
+      `Open my Soul Dossier & show matches 📜✨`
     ]);
 
-    if (voiceEnabled) {
+    if (voiceEnabled && speakReply) {
       speakGhostText(cleanGhostReply, {
         voiceEnabled: true,
         voicePresetId,
@@ -511,8 +640,56 @@ export default function App() {
       });
     }
 
-    // Open Soul Dossier modal for instant reward reveal
-    setIsDossierOpen(true);
+    if (openDossier) {
+      soundEngine.playDossierReveal();
+      setIsDossierOpen(true);
+    }
+  };
+
+  const handleArcadeSyncResult = (result) => {
+    if (!result) return;
+
+    let latestProfile = soulProfileRef.current;
+    if (!latestProfile.arcade?.completed || latestProfile.arcade?.result?.title !== result.title) {
+      latestProfile = applyArcadeCompletionToProfile(latestProfile, result);
+    }
+    if (result.selectedPathway) {
+      latestProfile = applyArcadePathwaySelection(latestProfile, result.selectedPathway);
+    }
+    soulProfileRef.current = latestProfile;
+    setSoulProfile(latestProfile);
+
+    postArcadeDebriefToChat(latestProfile, {
+      openDossier: true,
+      speakReply: true,
+      switchToCounseling: true
+    });
+  };
+
+  const handleArcadeClose = () => {
+    setIsArcadeOpen(false);
+    const latest = soulProfileRef.current;
+    if (
+      latest?.arcade?.completed &&
+      latest.arcade.result &&
+      latest.arcade.completedAt &&
+      latest.arcade.debriefedRunId !== latest.arcade.completedAt
+    ) {
+      postArcadeDebriefToChat(latest, {
+        openDossier: false,
+        speakReply: false,
+        switchToCounseling: false
+      });
+    }
+  };
+
+  const handleDiscussCareerFromDossier = (card) => {
+    if (!card) return;
+    setIsDossierOpen(false);
+    setPhase('counseling');
+    handleSendMessage(
+      `Let's dive into ${card.careerTitle} from my Soul Dossier! Walk me through my first 90-day step.`
+    );
   };
 
   const handleSaveApiKey = (e) => {
@@ -522,24 +699,7 @@ export default function App() {
     setIsSettingsOpen(false);
   };
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    const cleanId = loginId.trim().toLowerCase();
-    const cleanPass = loginPasscode.trim();
-
-    let matchedRole = null;
-    if (cleanId === 'judge' && cleanPass === 'kiroween2026') {
-      matchedRole = 'Judge';
-    } else if (cleanId === 'dev' && cleanPass === 'wareprise') {
-      matchedRole = 'Dev';
-    }
-
-    if (!matchedRole) {
-      soundEngine.playClickSound();
-      setLoginError('Invalid Access ID or Passcode. Please check your credentials.');
-      return;
-    }
-
+  const completeRoleLogin = (matchedRole) => {
     setLoginError('');
     sessionStorage.setItem('ghost_auth_role', matchedRole);
     setAuthRole(matchedRole);
@@ -571,6 +731,27 @@ export default function App() {
     }).catch(() => {});
   };
 
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    const cleanId = loginId.trim().toLowerCase();
+    const cleanPass = loginPasscode.trim();
+
+    let matchedRole = null;
+    if (cleanId === 'judge' && cleanPass === 'kiroween2026') {
+      matchedRole = 'Judge';
+    } else if (cleanId === 'dev' && cleanPass === 'wareprise') {
+      matchedRole = 'Dev';
+    }
+
+    if (!matchedRole) {
+      soundEngine.playClickSound();
+      setLoginError('Invalid Access ID or Passcode. Please check your credentials.');
+      return;
+    }
+
+    completeRoleLogin(matchedRole);
+  };
+
   const handleLogout = () => {
     soundEngine.playClickSound();
     stopGhostSpeech(setMouthOpenness);
@@ -580,6 +761,17 @@ export default function App() {
     setLoginId('');
     setLoginPasscode('');
     setLoginError('');
+    const freshProfile = createInitialSoulProfile();
+    soulProfileRef.current = freshProfile;
+    setSoulProfile(freshProfile);
+    setSessionResetKey((k) => k + 1);
+    setMessages([INITIAL_GREETING]);
+    setQuickPrompts(INITIAL_GREETING.quickPrompts);
+    setStageIndex(0);
+    setAuraPoints(1000);
+    setMood('welcoming');
+    setIsDossierOpen(false);
+    setIsArcadeOpen(false);
     setPhase('landing');
     try {
       window.history.replaceState(null, '', window.location.pathname);
@@ -588,17 +780,38 @@ export default function App() {
     }
   };
 
-  const currentDossier = generatePersonalizedDossier(traits, messages);
+  const traits = useMemo(
+    () => ({
+      passions: soulProfile.passions || [],
+      strengths: soulProfile.strengths || [],
+      weaknesses: soulProfile.weaknesses || []
+    }),
+    [soulProfile.passions, soulProfile.strengths, soulProfile.weaknesses]
+  );
+
+  const currentDossier = useMemo(
+    () => generatePersonalizedDossier(soulProfile),
+    [soulProfile]
+  );
+  const isDossierEmpty = currentDossier.isEmpty;
+  const isDossierUnlocked =
+    !isDossierEmpty && (stageIndex >= 8 || Boolean(soulProfile.arcade?.completed));
+
   const activeVoicePreset = VOICE_PRESETS[voicePresetId] || VOICE_PRESETS.spooky_oracle;
 
   const displayPrompts = quickPrompts && quickPrompts.length >= 4 ? quickPrompts : INITIAL_GREETING.quickPrompts;
 
   // Phase Title Helper
   const getPhaseHeaderLabel = () => {
-    if (stageIndex < 2) return 'PHASE 1 // REALITY CHECK: CONSTRAINTS & LIFE';
-    if (stageIndex < 5) return 'PHASE 2 // ENERGY & ENVIRONMENT QUIZ';
-    if (stageIndex < 8) return 'PHASE 3 // BASE STATS & SKILL INVENTORY';
-    return '✨ MAIN CHARACTER SOUL DOSSIER READY!';
+    const arcadeBadge = soulProfile.arcade?.completed && soulProfile.arcade?.result
+      ? ` • ${soulProfile.arcade.result.badge} SYNCED`
+      : soulProfile.arcade?.choices?.length > 0
+      ? ` • CRISIS 3D ${soulProfile.arcade.choices.length}/10`
+      : '';
+    if (stageIndex >= 8) return `✨ MAIN CHARACTER SOUL DOSSIER READY!${arcadeBadge}`;
+    if (stageIndex < 2) return `PHASE 1 // REALITY CHECK: CONSTRAINTS & LIFE${arcadeBadge}`;
+    if (stageIndex < 5) return `PHASE 2 // ENERGY & ENVIRONMENT QUIZ${arcadeBadge}`;
+    return `PHASE 3 // BASE STATS & SKILL INVENTORY${arcadeBadge}`;
   };
 
   return (
@@ -715,6 +928,20 @@ export default function App() {
                 <span>🔮 Unlock Sanctuary</span>
               </button>
             </form>
+
+            {/* One-Click Judge Demo Access (Kiroween Hackathon Rule Compliance) */}
+            <div className="mt-4 pt-4 border-t border-purple-500/25 space-y-2">
+              <button
+                type="button"
+                onClick={() => completeRoleLogin('Judge')}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 font-fredoka font-bold text-xs tracking-wider uppercase text-amber-200 border border-amber-400/50 bg-amber-500/15 hover:bg-amber-400 hover:text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>👑 One-Click Judge Access (No Passcode Needed)</span>
+              </button>
+              <p className="font-mono text-[10px] text-purple-300/75">
+                Kiroween Judges: click above or sign in with <strong className="text-amber-200">Judge</strong> / <strong className="text-amber-200">kiroween2026</strong>
+              </p>
+            </div>
           </div>
 
           <div className="mt-6 flex items-end gap-2 pointer-events-none opacity-85">
@@ -913,7 +1140,7 @@ export default function App() {
             <button
               onClick={() => {
                 soundEngine.playClickSound();
-                setIsScryingActive(!isScryingActive);
+                handleSetScryingActive(!isScryingActive);
               }}
               className="flex items-center gap-1 rounded-full px-2.5 sm:px-3 py-1 text-[11px] font-fredoka font-bold bg-[#fb923c] hover:bg-[#f97316] text-slate-950 shadow-md transition-all hover:scale-105 active:scale-95 shrink-0"
               title="Toggle Scrying Mirror (webcam emotion analysis)"
@@ -938,16 +1165,28 @@ export default function App() {
             {/* Soul Dossier - Golden Amber Pill */}
             <button
               onClick={() => {
-                soundEngine.playDossierReveal();
+                if (isDossierEmpty) {
+                  soundEngine.playClickSound();
+                } else {
+                  soundEngine.playDossierReveal();
+                }
                 setIsDossierOpen(true);
               }}
-              className={`flex items-center gap-1 rounded-full px-2.5 sm:px-3 py-1 text-[11px] font-fredoka font-bold bg-[#f59e0b] hover:bg-[#d97706] text-slate-950 shadow-md transition-all hover:scale-105 active:scale-95 shrink-0 ${
-                stageIndex >= 8 ? 'animate-pulse ring-2 ring-amber-300' : ''
-              }`}
-              title="Open Career Soul Dossier"
+              className={`flex items-center gap-1 rounded-full px-2.5 sm:px-3 py-1 text-[11px] font-fredoka font-bold shadow-md transition-all hover:scale-105 active:scale-95 shrink-0 ${
+                isDossierEmpty
+                  ? 'bg-amber-950/70 hover:bg-amber-900/80 text-amber-200 border border-amber-400/40'
+                  : 'bg-[#f59e0b] hover:bg-[#d97706] text-slate-950'
+              } ${isDossierUnlocked ? 'animate-pulse ring-2 ring-amber-300' : ''}`}
+              title={
+                isDossierEmpty
+                  ? 'Soul Dossier (Empty — chat or play Crisis Simulator 3D to populate)'
+                  : 'Open Career Soul Dossier'
+              }
             >
               <ScrollText className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              <span>Soul Dossier {stageIndex >= 8 ? '✨' : ''}</span>
+              <span>
+                Soul Dossier {isDossierEmpty ? '(Empty)' : isDossierUnlocked ? '✨' : '• Live'}
+              </span>
             </button>
 
             {/* Crisis Simulator 3D Arcade - Fuchsia Gradient Pill */}
@@ -1010,7 +1249,7 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     soundEngine.playClickSound();
-                    setIsScryingActive(true);
+                    handleSetScryingActive(true);
                   }}
                   className="flex items-center gap-1 rounded-full px-2.5 py-0.5 font-fredoka font-bold text-[10px] border border-purple-400/50 bg-purple-950/80 text-purple-200 hover:text-white whitespace-nowrap shadow-[0_0_10px_rgba(168,85,247,0.3)] hover:scale-105 active:scale-95 transition"
                   title="Enable Scrying Mirror"
@@ -1022,28 +1261,36 @@ export default function App() {
             )}
 
             {/* ── Centerpiece: Rainbow Ring Showcase Portal & Ghost Counselor ── */}
-            <div className="relative flex flex-1 items-center justify-center overflow-hidden min-h-0">
-              <GhostSphere3D
-                phase={phase}
-                mood={mood}
-                isSpeaking={isSpeaking}
-                isListening={isListening}
-                isThinking={isThinking}
-                mouthOpenness={mouthOpenness}
-                auraPoints={auraPoints}
-                mousePosition={mousePosition}
-                isVoiceSoftened={isVoiceSoftened}
-                stageIndex={stageIndex}
-              />
+            <div
+              className={`relative flex flex-1 items-center overflow-hidden min-h-0 ${
+                isScryingActive ? 'justify-evenly gap-1.5 px-2' : 'justify-center'
+              }`}
+            >
+              <div className="flex items-center justify-center min-w-0 flex-1 h-full">
+                <GhostSphere3D
+                  phase={phase}
+                  mood={mood}
+                  isSpeaking={isSpeaking}
+                  isListening={isListening}
+                  isThinking={isThinking}
+                  mouthOpenness={mouthOpenness}
+                  auraPoints={auraPoints}
+                  mousePosition={mousePosition}
+                  isVoiceSoftened={isVoiceSoftened}
+                  stageIndex={stageIndex}
+                  compact={isScryingActive}
+                />
+              </div>
 
-              {/* Scrying Mirror Component when active */}
+              {/* Scrying Mirror Component side-by-side when active (no overlap with Ghost or Outfit Switcher) */}
               {isScryingActive && (
-                <div className="absolute top-2 right-2 z-30">
+                <div className="shrink-0 z-30 flex items-center justify-center">
                   <ScryingMirror
                     isActive={isScryingActive}
-                    onToggleActive={setIsScryingActive}
+                    onToggleActive={handleSetScryingActive}
                     onVibeChange={(vibe) => setCurrentVibe(vibe)}
                     onAutoSubmitVibe={handleAutoSubmitVibe}
+                    initialStreamPromise={scryingStreamPromise}
                     isThinking={isThinking}
                   />
                 </div>
@@ -1062,9 +1309,24 @@ export default function App() {
               <span className="font-fredoka font-bold text-[10px] text-slate-300 tracking-wider">
                 QUICK REPLIES (TAP OR SPEAK):
               </span>
-              <div className="flex items-center gap-1 font-fredoka text-[10px] text-lime-300">
-                <span className="w-2 h-2 rounded-full bg-[#a3e635] animate-pulse" />
-                <span>{isSpeaking ? 'Counselor speaking...' : isListening ? 'Listening...' : 'Ready'}</span>
+              <div className="flex items-center gap-1.5 font-fredoka text-[10px]">
+                {isVoiceSoftened && (
+                  <span className="rounded-full border border-cyan-400/50 bg-cyan-950/70 px-2 py-0.5 text-[9.5px] font-bold text-cyan-200 animate-pulse">
+                    🕊️ Gentle Voice
+                  </span>
+                )}
+                <div className="flex items-center gap-1 text-lime-300">
+                  <span className="w-2 h-2 rounded-full bg-[#a3e635] animate-pulse" />
+                  <span>
+                    {isSpeaking
+                      ? isVoiceSoftened
+                        ? 'Speaking gently...'
+                        : 'Counselor speaking...'
+                      : isListening
+                      ? 'Listening...'
+                      : 'Ready'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1165,23 +1427,39 @@ export default function App() {
               </div>
             </div>
 
-            {/* ── Live Trait Compass Strip (Passions / Strengths / Boundaries) ── */}
-            <div className="flex items-center justify-between px-4 py-1.5 bg-[#120524]/90 border-b border-purple-500/20 text-[11px] font-fredoka z-20 shrink-0">
-              <div className="flex items-center gap-3">
+            {/* ── Live Trait Compass Strip (Passions / Strengths / Boundaries / Crisis 3D) ── */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 bg-[#120524]/90 border-b border-purple-500/20 text-[11px] font-fredoka z-20 shrink-0">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="text-amber-300">🔥 Passions: <strong className="text-white">{traits.passions.length}</strong></span>
                 <span className="text-lime-300">✨ Strengths: <strong className="text-white">{traits.strengths.length}</strong></span>
                 <span className="text-cyan-300">🛡️ Boundaries: <strong className="text-white">{traits.weaknesses.length}</strong></span>
+                {soulProfile.arcade?.completed && soulProfile.arcade?.result ? (
+                  <span className="text-fuchsia-300">
+                    {soulProfile.arcade.result.badge}{' '}
+                    <strong className="text-white">
+                      {soulProfile.arcade.result.title.split('/')[0].trim()}
+                    </strong>
+                  </span>
+                ) : soulProfile.arcade?.choices?.length > 0 ? (
+                  <span className="text-fuchsia-300">
+                    🕹️ Crisis 3D: <strong className="text-white">{soulProfile.arcade.choices.length}/10</strong>
+                  </span>
+                ) : null}
                 <span className="text-purple-300">⚡ Aura: <strong className="text-[#a3e635]">+{auraPoints.toLocaleString()}</strong></span>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  soundEngine.playDossierReveal();
+                  if (isDossierEmpty) {
+                    soundEngine.playClickSound();
+                  } else {
+                    soundEngine.playDossierReveal();
+                  }
                   setIsDossierOpen(true);
                 }}
                 className="text-amber-200 hover:text-amber-100 font-bold underline flex items-center gap-1 transition"
               >
-                <span>Soul Dossier</span>
+                <span>{isDossierEmpty ? 'Soul Dossier (Empty)' : 'Soul Dossier'}</span>
                 <span className="text-xs">📜</span>
               </button>
             </div>
@@ -1219,12 +1497,23 @@ export default function App() {
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-purple-400 bg-[#1e0a35] shadow-[0_0_12px_rgba(168,85,247,0.7)] flex items-center justify-center shrink-0">
                       <MiniGhost className="w-6 h-6" />
                     </div>
-                    {/* Deep Midnight Purple Card with Neon Purple Border */}
-                    <div className="flex-1 rounded-[22px] bg-[#1a0a2e] border-2 border-[#a855f7] text-white px-5 py-3 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                    {/* Deep Midnight Purple Card with Neon Purple (or Calming Cyan) Border */}
+                    <div
+                      className={`flex-1 rounded-[22px] bg-[#1a0a2e] border-2 text-white px-5 py-3 ${
+                        msg.softenVoice
+                          ? 'border-cyan-400/80 shadow-[0_0_22px_rgba(34,211,238,0.28)]'
+                          : 'border-[#a855f7] shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                      }`}
+                    >
                       <div className="flex items-center justify-between mb-0.5">
-                        <span className="font-fredoka font-black text-xs text-purple-200 flex items-center gap-1.5">
+                        <span className="font-fredoka font-black text-xs text-purple-200 flex items-center gap-1.5 flex-wrap">
                           <span>{msg.hostTitle || 'Friendly Ghost Counselor'}</span>
                           <span className="text-[10px] text-amber-300">✨</span>
+                          {msg.softenVoice && (
+                            <span className="rounded-full border border-cyan-400/50 bg-cyan-950/80 px-2 py-0.5 text-[9.5px] font-mono font-bold text-cyan-200">
+                              🕊️ Softened Voice
+                            </span>
+                          )}
                         </span>
                         <button
                           type="button"
@@ -1250,16 +1539,18 @@ export default function App() {
               })}
 
               {/* Dossier Ready Callout Card when unlocked */}
-              {stageIndex >= 8 && (
+              {isDossierUnlocked && (
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/60 via-purple-950/60 to-amber-950/60 border border-amber-400/50 shadow-[0_0_20px_rgba(251,191,36,0.3)] flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <span className="text-2xl">📜</span>
                     <div>
                       <div className="font-fredoka font-black text-xs sm:text-sm text-amber-200">
-                        Main Character Soul Dossier Unlocked!
+                        Main Character Soul Dossier Synced!
                       </div>
                       <div className="text-[11px] text-purple-200/80">
-                        Your 3 Tarot Career Arcana Cards &amp; 90-day post-high-school roadmap are ready.
+                        {currentDossier.careerCards?.[0]
+                          ? `Top Match: ${currentDossier.careerCards[0].careerTitle} (${currentDossier.careerCards[0].matchPercent}% Match) + 90-day roadmap ready.`
+                          : 'Your 3 Tarot Career Arcana Cards & 90-day post-high-school roadmap are ready.'}
                       </div>
                     </div>
                   </div>
@@ -1312,13 +1603,33 @@ export default function App() {
         isOpen={isDossierOpen}
         onClose={() => setIsDossierOpen(false)}
         dossier={currentDossier}
+        onStartChat={() => setPhase('counseling')}
+        onLaunchArcade={() => {
+          soundEngine.playClickSound();
+          setIsArcadeOpen(true);
+        }}
+        onDiscussCareer={handleDiscussCareerFromDossier}
       />
 
       {/* 3D Crisis Simulator Arcade Assessment Modal */}
       <ArcadeAssessmentModal
         isOpen={isArcadeOpen}
-        onClose={() => setIsArcadeOpen(false)}
+        onClose={handleArcadeClose}
         onSyncResult={handleArcadeSyncResult}
+        onScenarioChoice={handleArcadeScenarioChoice}
+        onGameComplete={handleArcadeGameComplete}
+        onSelectPathway={handleArcadePathwaySelect}
+        onOpenDossier={() => {
+          if (isDossierEmpty) {
+            soundEngine.playClickSound();
+          } else {
+            soundEngine.playDossierReveal();
+          }
+          setIsDossierOpen(true);
+        }}
+        soulProfile={soulProfile}
+        dossier={currentDossier}
+        sessionResetKey={sessionResetKey}
         voiceEnabled={voiceEnabled}
         voicePresetId={voicePresetId}
       />

@@ -3,10 +3,13 @@ node_modules/
 .pnp
 .pnp.js
 
-# Production build
+# Production build & local packaging/recording artifacts
 dist/
 dist-ssr/
+dist.zip
 build/
+*.mp4
+kiro-features-showcase.html
 
 # Local environment & logs
 .env

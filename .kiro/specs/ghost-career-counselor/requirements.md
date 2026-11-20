@@ -1,4 +1,4 @@
-# Requirements Specification: The Friendly Ghost Career Counselor
+# Requirements Document
 
 ## Introduction
 Graduating high school students face intense anxiety ("feeling cooked") when deciding their post-graduation path. Traditional career tools rely on exhausting text questionnaires and often ignore real-world financial and family obligations, defaulting to expensive 4-year university recommendations that do not fit every student's life constraints or energy profile.
@@ -7,7 +7,24 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 
 ---
 
-## Iteration 1: Core Counseling Protocol & Safety Guardrails
+## Glossary
+
+- **Friendly Ghost Career Counselor**: An AI-powered career guidance system designed for graduating high school students, using 2026 slang and an empathetic, supportive persona.
+- **Phase 1: The Reality Check**: First counseling phase focusing on mapping real-world constraints (financial needs, geographic mobility, family obligations).
+- **Phase 2: The Energy & Environment Quiz**: Second counseling phase assessing ideal working conditions and energy sources (digital vs. physical, solo vs. collaborative).
+- **Phase 3: The Skill Inventory (Base Stats)**: Third counseling phase identifying and reframing natural talents as professional assets.
+- **Soul Dossier**: A comprehensive exportable summary of the student's passions, strengths, boundaries, career archetypes, and 90-day action plan.
+- **Scrying Mirror**: On-device webcam-based facial expression detection system using MediaPipe Face Landmarker for real-time emotional state tracking.
+- **Crisis Simulator 3D**: A WebGL-based 3D arcade game that assesses career instincts through 10 real-life crisis scenarios, revealing one of 4 psychometric archetypes.
+- **Spectral Archetypes**: Four career personality types revealed through the Crisis Simulator (Maker, Architect, Catalyst, Visionary).
+- **Auto-Comfort Mode**: Automatic empathetic intervention triggered when facial stress indicators exceed thresholds.
+- **Aura**: Gamification metric displayed to celebrate user engagement and progress.
+
+---
+
+## Requirements
+
+### Iteration 1: Core Counseling Protocol & Safety Guardrails
 
 ### Requirement 1: Three-Phase Constraint-Aware Counseling & Open Q&A
 **User Story:** As a graduating student, I want a supportive ghost counselor that asks one clear question at a time about my real-world constraints, work energy, and everyday talents—while also answering any freeform career question I ask by voice or text—so I get realistic guidance without feeling overwhelmed.
@@ -32,7 +49,7 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 
 ---
 
-## Iteration 2: Costume Contest UI, Voice Personas & Soul Dossier
+### Iteration 2: Costume Contest UI, Voice Personas & Soul Dossier
 
 ### Requirement 3: Haunting Costume UI, Outfit Switcher & Multimodal Voice
 **User Story:** As a user exploring the app, I want an atmospheric, spooky-yet-welcoming interface with customizable ghost costumes and voice styles so career counseling feels like an engaging interactive experience rather than a clinical form.
@@ -52,7 +69,7 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 
 ---
 
-## Iteration 3: Scrying Mirror — Webcam Face, Mouth & Eyebrow Detection
+### Iteration 3: Scrying Mirror — Webcam Face, Mouth & Eyebrow Detection
 
 ### Requirement 5: On-Device Facial Expression Telemetry & Auto-Comfort Mode
 **User Story:** As an anxious student discussing stressful future decisions, I want the counselor to notice non-verbal facial cues (like furrowed eyebrows or a tense frown) and comfort me automatically, while keeping my webcam feed 100% private on my device.
@@ -63,7 +80,7 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 
 ---
 
-## Iteration 4: Crisis Simulator 3D — Career Assessment Arcade Game
+### Iteration 4: Crisis Simulator 3D — Career Assessment Arcade Game
 
 ### Requirement 6: 3D WebGL Crisis Assessment & Psychometric De-biasing
 **User Story:** As a student who dislikes long multiple-choice questionnaires, I want to test my career instincts inside a 3D arcade game where I steer a ghost avatar into portals during real-life crises and sync my unlocked archetype directly to my counselor and Soul Dossier.

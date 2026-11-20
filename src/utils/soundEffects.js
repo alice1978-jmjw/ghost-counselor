@@ -601,13 +601,13 @@ export function speakGhostText(
 
       if (isSafetyIntervention) {
         utterance.pitch = 1.0;
-        utterance.rate = 0.95;
+        utterance.rate = 0.92;
         utterance.volume = 1.0;
       } else if (softenVoice) {
-        // Empathetically softened voice: calmer pace, warmer soothing pitch, tender volume
-        utterance.pitch = Math.max(0.88, (preset.pitch || 1.0) * 0.92);
-        utterance.rate = Math.max(0.80, (preset.rate || 1.0) * 0.88);
-        utterance.volume = 0.78;
+        // Noticeably softened, calm, hushed comfort voice across all voice presets
+        utterance.pitch = Math.max(0.75, (preset.pitch || 1.0) * 0.9);
+        utterance.rate = Math.max(0.76, (preset.rate || 1.0) * 0.82);
+        utterance.volume = 0.58;
       } else {
         utterance.pitch = preset.pitch;
         utterance.rate = preset.rate;

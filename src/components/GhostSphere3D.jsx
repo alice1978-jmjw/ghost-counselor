@@ -14,7 +14,8 @@ export default function GhostSphere3D({
   auraPoints = 1000,
   mousePosition = null,
   isVoiceSoftened = false,
-  stageIndex = 0
+  stageIndex = 0,
+  compact = false
 }) {
   const [useCostume, setUseCostume] = useState(false);
 
@@ -24,9 +25,15 @@ export default function GhostSphere3D({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center min-h-[220px] select-none px-2 py-1">
+    <div className="relative w-full h-full flex flex-col items-center justify-center min-h-[200px] select-none px-1 py-1">
       {/* ── Center Stage: Rainbow Portal & Parallax Sphere ── */}
-      <div className="relative flex items-center justify-center w-[270px] h-[270px] sm:w-[300px] sm:h-[300px] max-w-full">
+      <div
+        className={`relative flex items-center justify-center max-w-full transition-all duration-300 ${
+          compact
+            ? 'w-[210px] h-[210px] sm:w-[235px] sm:h-[235px]'
+            : 'w-[270px] h-[270px] sm:w-[300px] sm:h-[300px]'
+        }`}
+      >
         
         {/* Subtle Background Glow behind the Rainbow Portal */}
         <div
@@ -48,7 +55,11 @@ export default function GhostSphere3D({
 
         {/* ── Outer Rainbow Neon Glowing Ring Portal ── */}
         <div
-          className="relative w-[230px] h-[230px] sm:w-[260px] sm:h-[260px] rounded-full p-[3.5px] rainbow-portal-ring flex items-center justify-center transition-transform duration-300"
+          className={`relative rounded-full p-[3.5px] rainbow-portal-ring flex items-center justify-center transition-all duration-300 ${
+            compact
+              ? 'w-[180px] h-[180px] sm:w-[202px] sm:h-[202px]'
+              : 'w-[230px] h-[230px] sm:w-[260px] sm:h-[260px]'
+          }`}
           style={{
             transform: isSpeaking ? 'scale(1.02)' : 'scale(1)'
           }}
