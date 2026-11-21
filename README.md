@@ -2,7 +2,7 @@
 
 > **Category:** Costume Contest  
 > **Live App (HTTPS):** [https://www.wareprise.com/counselor](https://www.wareprise.com/counselor)  
-> **Judge Access:** Click **"👑 One-Click Judge Access (No Passcode Needed)"** on the gate, or sign in with Access ID **`Judge`** and Passcode **`kiroween2026`** *(no Gemini API key required — works out of the box!)*  
+> **Judge Access:** Use the private Access ID & Passcode (or private 1-click Judge link) provided in our Devpost Testing Instructions, or enter immediately via the **Guest Access** tab *(no Gemini API key required — works out of the box!)*  
 > **Built with:** Kiro (`.kiro/specs`, `.kiro/steering`, `.kiro/hooks`, `.kiro/settings/mcp.json`, `.kiro/rules.md`), React 18, Vite, Tailwind CSS, Three.js WebGL, Google MediaPipe Face Landmarker (100% local WASM), Web Speech & Web Audio APIs, Zod, and Google Gemini (`gemini-2.0-flash`) + zero-key AI / offline fallback
 
 An interactive **Friendly Ghost Career Counselor** web application built for the **Kiroween Hackathon (Costume Contest)**, designed to guide students who feel "cooked" about life after high school through **open-ended voice & text mentorship**, **on-device webcam face, mouth, eyebrow & eye-contact distress detection**, a **3D WebGL Crisis Simulator career assessment game**, and a live-synced Tarot-style **Soul Dossier**.
@@ -12,7 +12,7 @@ An interactive **Friendly Ghost Career Counselor** web application built for the
 ## 🧪 Judge Testing Guide (Zero-Config Ready)
 
 1. Open the live HTTPS app at **[https://www.wareprise.com/counselor](https://www.wareprise.com/counselor)** *(or run locally via `npm run dev` on `http://localhost:5173`)*. Use **Chrome or Edge** over HTTPS/localhost for live webcam & voice features.
-2. Click **"👑 One-Click Judge Access (No Passcode Needed)"** (or enter Access ID **`Judge`** / Passcode **`kiroween2026`**).
+2. Sign in on the **Passcode** tab using the private Judge credentials (or private 1-click Judge link) provided in our Devpost Testing Instructions — or switch to **Guest Access** to try it immediately with any email.
 3. **No API key required:** The counseling engine automatically cascades across optional Gemini (`gemini-2.0-flash`), zero-key free AI, and a full deterministic local counseling engine — all validated via `GhostResponseSchema` (Zod).
 4. **Suggested 60-Second Flow:**
    - Click **Part the Mist & Summon Counselor**, then open **Soul Dossier** first to verify it starts in a clean **Empty State** before any chat or gameplay.
@@ -67,6 +67,7 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
    ```bash
    cp .env.example .env
    ```
+   * `JUDGE_PASSCODE` / `DEV_PASSCODE`: Private passcodes for the Judge and Dev roles. Because they have no `VITE_` prefix, `vite.config.js` hashes them with salted SHA-256 at build time so plaintext passcodes are never embedded in the frontend bundle or committed to GitHub.
    * `VITE_FORMSPREE_FORM_ID`: Your [Formspree](https://formspree.io) form ID to capture guest access emails. *(If left blank, the gate runs in local simulation mode for instant testing!)*
    * `VITE_GEMINI_API_KEY`: Optional Gemini API key for Layer 1 AI responses. *(If left blank, the app automatically uses zero-key free AI and offline fallback!)*
 
@@ -85,11 +86,8 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
 
 ## 🔑 Spectral Gate Access
 
-The sanctuary gate provides three zero-friction access pathways:
-* **One-Click Judge Access**: Click **"👑 One-Click Judge Access (No Passcode Needed)"** on the Passcode tab for instant entry.
-* **Passcode Login**:
-  * **Judge**: Access ID: `judge` / Passcode: `kiroween2026`
-  * **Dev**: Access ID: `dev` / Passcode: `wareprise`
+The sanctuary gate supports two clean access modes without exposing private passcodes in source code:
+* **Passcode Login (Judge & Dev)**: Passcodes are configured locally in `.env` (`JUDGE_PASSCODE` / `DEV_PASSCODE`), salted & hashed with SHA-256 at build time by `vite.config.js`, and verified client-side against the hash. Also supports private 1-click URL entry (`?judge=<passcode>`), which verifies the hash and immediately strips the query parameter from the address bar.
 * **Guest Access (Formspree)**: Switch to the **Guest Access** tab and enter any valid email to enter immediately as a **Guest Seeker**.
 
 ---

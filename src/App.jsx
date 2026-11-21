@@ -57,6 +57,11 @@ import {
 } from './utils/soundEffects';
 import { requestWebcamStream } from './services/faceLandmarkerService';
 import { submitGuestAccessEmail, verifyConfirmationCode } from './services/waitlistService';
+import { verifyPasscodeHash } from './utils/passcodeHash';
+
+/* global __JUDGE_PASS_HASH__, __DEV_PASS_HASH__ */
+const JUDGE_PASS_HASH = typeof __JUDGE_PASS_HASH__ !== 'undefined' ? __JUDGE_PASS_HASH__ : '';
+const DEV_PASS_HASH = typeof __DEV_PASS_HASH__ !== 'undefined' ? __DEV_PASS_HASH__ : '';
 
 export default function App() {
   const [authRole, setAuthRole] = useState(() => sessionStorage.getItem('ghost_auth_role') || '');
@@ -168,56 +173,84 @@ export default function App() {
     };
   }, []);
 
-  // 1-Click Email Confirmation Link Handler (?access_gate=confirmed or ?key=...)
+  // 1-Click Private Judge/Dev Magic Link (?judge=<passcode> / ?dev=<passcode>) & Email Confirmation Handler
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const accessGate = params.get('access_gate') || params.get('access');
-      const confirmedEmail = params.get('email') || params.get('confirm_email');
-      const urlFirstName = params.get('firstname') || params.get('name') || params.get('FIRSTNAME');
-      const key =
-        params.get('key') ||
-        params.get('code') ||
-        params.get('confirm_code') ||
-        params.get('token') ||
-        params.get('confirm_token');
-      const storedToken = sessionStorage.getItem('ghost_pending_token');
+    let cancelled = false;
 
-      const isKeyValid = key && verifyConfirmationCode(key, storedToken);
+    const handleUrlAccess = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
 
-      if (accessGate === 'confirmed' || isKeyValid) {
-        const guestEmail = confirmedEmail || sessionStorage.getItem('ghost_pending_email') || 'confirmed_guest';
-        const storedName = urlFirstName || sessionStorage.getItem('ghost_pending_name') || sessionStorage.getItem('ghost_user_name');
-        sessionStorage.setItem('ghost_auth_role', 'Guest');
-        sessionStorage.setItem('ghost_user_email', guestEmail);
-        if (storedName) {
-          sessionStorage.setItem('ghost_user_name', storedName);
-          setGuestFirstName(storedName);
+        // Private Judge / Dev Magic Link (verified against build-time SHA-256 hash; immediately stripped from URL)
+        const judgeSecret = params.get('judge') || params.get('judge_key');
+        const devSecret = params.get('dev') || params.get('dev_key');
+        if (judgeSecret && JUDGE_PASS_HASH) {
+          const validJudge = await verifyPasscodeHash(judgeSecret, JUDGE_PASS_HASH);
+          if (!cancelled && validJudge) {
+            completeRoleLogin('Judge');
+            return;
+          }
         }
-        sessionStorage.removeItem('ghost_pending_token');
-        sessionStorage.removeItem('ghost_pending_email');
-        sessionStorage.removeItem('ghost_pending_name');
-        setAuthRole('Guest');
-        soundEngine.playTraitChime('passion');
-
-        // Analytics
-        try {
-          window.dataLayer = window.dataLayer || [];
-          window.dataLayer.push({
-            event: 'counselor_email_link_confirmed',
-            user_role: 'Guest',
-            email: guestEmail,
-            timestamp: new Date().toISOString()
-          });
-        } catch {
-          // Ignore
+        if (devSecret && DEV_PASS_HASH) {
+          const validDev = await verifyPasscodeHash(devSecret, DEV_PASS_HASH);
+          if (!cancelled && validDev) {
+            completeRoleLogin('Dev');
+            return;
+          }
         }
 
-        window.history.replaceState(null, '', window.location.pathname);
+        const accessGate = params.get('access_gate') || params.get('access');
+        const confirmedEmail = params.get('email') || params.get('confirm_email');
+        const urlFirstName = params.get('firstname') || params.get('name') || params.get('FIRSTNAME');
+        const key =
+          params.get('key') ||
+          params.get('code') ||
+          params.get('confirm_code') ||
+          params.get('token') ||
+          params.get('confirm_token');
+        const storedToken = sessionStorage.getItem('ghost_pending_token');
+
+        const isKeyValid = key && verifyConfirmationCode(key, storedToken);
+
+        if (!cancelled && (accessGate === 'confirmed' || isKeyValid)) {
+          const guestEmail = confirmedEmail || sessionStorage.getItem('ghost_pending_email') || 'confirmed_guest';
+          const storedName = urlFirstName || sessionStorage.getItem('ghost_pending_name') || sessionStorage.getItem('ghost_user_name');
+          sessionStorage.setItem('ghost_auth_role', 'Guest');
+          sessionStorage.setItem('ghost_user_email', guestEmail);
+          if (storedName) {
+            sessionStorage.setItem('ghost_user_name', storedName);
+            setGuestFirstName(storedName);
+          }
+          sessionStorage.removeItem('ghost_pending_token');
+          sessionStorage.removeItem('ghost_pending_email');
+          sessionStorage.removeItem('ghost_pending_name');
+          setAuthRole('Guest');
+          soundEngine.playTraitChime('passion');
+
+          // Analytics
+          try {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              event: 'counselor_email_link_confirmed',
+              user_role: 'Guest',
+              email: guestEmail,
+              timestamp: new Date().toISOString()
+            });
+          } catch {
+            // Ignore
+          }
+
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } catch {
+        // Ignore URL parsing errors
       }
-    } catch {
-      // Ignore URL parsing errors
-    }
+    };
+
+    handleUrlAccess();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -786,7 +819,7 @@ export default function App() {
           user_role: matchedRole
         });
       }
-      window.history.replaceState(null, '', `#role=${matchedRole.toLowerCase()}`);
+      window.history.replaceState(null, '', `${window.location.pathname}#role=${matchedRole.toLowerCase()}`);
     } catch {
       // Ignore analytics errors
     }
@@ -798,16 +831,26 @@ export default function App() {
     }).catch(() => {});
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const cleanId = loginId.trim().toLowerCase();
     const cleanPass = loginPasscode.trim();
 
+    if (!JUDGE_PASS_HASH && !DEV_PASS_HASH) {
+      soundEngine.playClickSound();
+      setLoginError('Passcode login is not configured in this build. Use Guest Access or configure JUDGE_PASSCODE / DEV_PASSCODE in .env.');
+      return;
+    }
+
     let matchedRole = null;
-    if (cleanId === 'judge' && cleanPass === 'kiroween2026') {
-      matchedRole = 'Judge';
-    } else if (cleanId === 'dev' && cleanPass === 'wareprise') {
-      matchedRole = 'Dev';
+    if (cleanId === 'judge' && JUDGE_PASS_HASH) {
+      if (await verifyPasscodeHash(cleanPass, JUDGE_PASS_HASH)) {
+        matchedRole = 'Judge';
+      }
+    } else if (cleanId === 'dev' && DEV_PASS_HASH) {
+      if (await verifyPasscodeHash(cleanPass, DEV_PASS_HASH)) {
+        matchedRole = 'Dev';
+      }
     }
 
     if (!matchedRole) {
@@ -1180,17 +1223,10 @@ export default function App() {
               </form>
             )}
 
-            {/* One-Click Judge Demo Access (Kiroween Hackathon Rule Compliance) */}
-            <div className="mt-4 pt-4 border-t border-purple-500/25 space-y-2">
-              <button
-                type="button"
-                onClick={() => completeRoleLogin('Judge')}
-                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 font-fredoka font-bold text-xs tracking-wider uppercase text-amber-200 border border-amber-400/50 bg-amber-500/15 hover:bg-amber-400 hover:text-slate-950 shadow-[0_0_18px_rgba(251,191,36,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>👑 One-Click Judge Access (No Passcode Needed)</span>
-              </button>
-              <p className="font-mono text-[10px] text-purple-300/75">
-                Kiroween Judges: click above or sign in with <strong className="text-amber-200">Judge</strong> / <strong className="text-amber-200">kiroween2026</strong>
+            {/* Judge & Visitor Access Note (No credentials exposed in UI or public repo) */}
+            <div className="mt-4 pt-3 border-t border-purple-500/25">
+              <p className="font-mono text-[10px] leading-relaxed text-purple-300/75">
+                Kiroween Judges: sign in with the Access ID &amp; Passcode from our Devpost testing notes, or use <strong className="text-[#a3e635]">Guest Access</strong> to try it immediately.
               </p>
             </div>
           </div>
