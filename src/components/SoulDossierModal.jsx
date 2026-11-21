@@ -14,7 +14,8 @@ import {
   Gamepad2,
   Lock,
   Trophy,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Info
 } from 'lucide-react';
 import { ARCHETYPE_PROFILES } from '../data/assessmentData';
 
@@ -126,6 +127,10 @@ export default function SoulDossierModal({
       lines.push('');
     });
 
+    lines.push(
+      `---\n*Spectral Note: Our Ghost Counselor uses AI to brainstorm paths with you. Always double-check facts, salaries, and big decisions with a real-world mentor.*`
+    );
+
     const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -136,18 +141,32 @@ export default function SoulDossierModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-3 sm:p-6 backdrop-blur-xl overflow-y-auto">
-      <div className="glass-editorial-panel relative my-auto max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl text-slate-100">
-        {/* Swiss Editorial Top Metadata Bar */}
-        <div className="flex items-center justify-between border-b border-white/15 bg-white/[0.03] px-6 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-slate-300">
-          <span>DOSSIER № 2026-TG // VICTORIAN ARMOIRE ARCHIVE</span>
-          <span className="text-amber-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 sm:p-4 backdrop-blur-xl">
+      <div className="glass-editorial-panel relative w-full max-w-5xl max-h-[96vh] print:max-h-none rounded-3xl text-slate-100 flex flex-col overflow-hidden print:overflow-visible">
+        {/* Swiss Editorial Top Metadata Bar + Pinned Top-Right Close Button (matches 3D Crisis) */}
+        <div className="flex items-center justify-between gap-3 border-b border-white/15 bg-white/[0.03] px-5 py-3 shrink-0">
+          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-300 truncate">
+            DOSSIER № 2026-TG // VICTORIAN ARMOIRE ARCHIVE
+          </span>
+          <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-amber-300 shrink-0">
             {isEmpty ? 'AWAITING SIGNAL // EMPTY DOSSIER' : 'LIVE SYNCED // CHAT × CRISIS 3D'}
           </span>
-          <span>WARD CONFIDENTIAL</span>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-slate-300">
+              WARD CONFIDENTIAL
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="no-print rounded-xl p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close Soul Dossier"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-5 sm:p-8">
+        <div className="flex-1 overflow-y-auto print:overflow-visible p-5 sm:p-8">
           {/* Top Action Header */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-5">
             <div>
@@ -160,33 +179,24 @@ export default function SoulDossierModal({
               </h2>
             </div>
 
-            <div className="no-print flex items-center gap-2.5">
-              {!isEmpty && (
-                <>
-                  <button
-                    onClick={handleDownloadMarkdown}
-                    className="glass-pill flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-amber-200"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Download Scroll (.md)</span>
-                  </button>
-                  <button
-                    onClick={handlePrint}
-                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-amber-500 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md transition hover:from-amber-200 hover:to-amber-400"
-                  >
-                    <Printer className="h-4 w-4" />
-                    <span>Print / Save PDF</span>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={onClose}
-                className="glass-pill rounded-xl p-2 text-slate-300 hover:text-white"
-                aria-label="Close Soul Dossier"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            {!isEmpty && (
+              <div className="no-print flex items-center gap-2.5">
+                <button
+                  onClick={handleDownloadMarkdown}
+                  className="glass-pill flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-amber-200"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download Scroll (.md)</span>
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-amber-500 px-3.5 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md transition hover:from-amber-200 hover:to-amber-400"
+                >
+                  <Printer className="h-4 w-4" />
+                  <span>Print / Save PDF</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════
@@ -682,6 +692,17 @@ export default function SoulDossierModal({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* AI Guidance Disclaimer Footer */}
+              <div
+                role="note"
+                className="mt-6 flex items-start sm:items-center gap-2 rounded-2xl border border-purple-400/25 bg-white/[0.03] px-4 py-2.5 text-[11px] leading-relaxed text-slate-300"
+              >
+                <Info className="mt-0.5 sm:mt-0 h-3.5 w-3.5 text-amber-300 shrink-0" />
+                <span>
+                  <strong className="text-amber-200 font-semibold">Spectral Note:</strong> Our Ghost Counselor uses AI to brainstorm paths with you. Always double-check facts, salaries, and big decisions with a real-world mentor.
+                </span>
               </div>
             </>
           )}

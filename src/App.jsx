@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   ArrowLeft,
   RefreshCw,
-  Send
+  Send,
+  Info
 } from 'lucide-react';
 import FogOverlay from './components/FogOverlay';
 import GhostSphere3D from './components/GhostSphere3D';
@@ -945,9 +946,9 @@ export default function App() {
       ? ` • CRISIS 3D ${soulProfile.arcade.choices.length}/10`
       : '';
     if (stageIndex >= 8) return `✨ MAIN CHARACTER SOUL DOSSIER READY!${arcadeBadge}`;
-    if (stageIndex < 2) return `PHASE 1 // REALITY CHECK: CONSTRAINTS & LIFE${arcadeBadge}`;
-    if (stageIndex < 5) return `PHASE 2 // ENERGY & ENVIRONMENT QUIZ${arcadeBadge}`;
-    return `PHASE 3 // BASE STATS & SKILL INVENTORY${arcadeBadge}`;
+    if (stageIndex < 2) return `REALITY CHECK: CONSTRAINTS & LIFE${arcadeBadge}`;
+    if (stageIndex < 5) return `ENERGY & ENVIRONMENT QUIZ${arcadeBadge}`;
+    return `BASE STATS & SKILL INVENTORY${arcadeBadge}`;
   };
 
   return (
@@ -1488,7 +1489,7 @@ export default function App() {
             {/* ── Section Header Strip ── */}
             <div className="relative flex items-center justify-between px-4 py-2 border-b border-purple-500/30 shrink-0 bg-[#16082c]/80 z-20">
               <span className="font-fredoka font-black text-xs text-[#a3e635] tracking-wider whitespace-nowrap drop-shadow-[0_0_8px_rgba(163,230,53,0.5)]">
-                SEC. 01 // SPECTRAL CAREER SANCTUARY
+                SPECTRAL CAREER SANCTUARY
               </span>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -1666,15 +1667,15 @@ export default function App() {
             {/* Top-Right Border Purple Bat Accent */}
             <Bat className="absolute right-28 top-2 w-6 h-5 pointer-events-none z-10 opacity-70" />
 
-            {/* Bottom smiling Jack-o'-lantern pumpkins */}
-            <div className="absolute right-12 bottom-1 z-10 pointer-events-none opacity-85">
+            {/* Bottom smiling Jack-o'-lantern pumpkins (positioned above AI disclaimer strip) */}
+            <div className="absolute right-12 bottom-9 z-10 pointer-events-none opacity-85">
               <Pumpkin className="w-8 h-7" />
             </div>
 
             {/* ── Section Header Strip ── */}
             <div className="flex items-center justify-between px-5 py-2 border-b border-purple-500/30 shrink-0 bg-[#16082c]/80 z-20">
               <span className="font-fredoka font-black text-xs text-[#a3e635] tracking-wider drop-shadow-[0_0_8px_rgba(163,230,53,0.5)]">
-                SEC. 02 // CAREER COUNSELING &amp; CHAT
+                CAREER COUNSELING &amp; CHAT
               </span>
               <div className="flex items-center gap-2">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -1848,6 +1849,17 @@ export default function App() {
               )}
 
               <div ref={chatEndRef} />
+            </div>
+
+            {/* ── AI Guidance Disclaimer Footer Strip ── */}
+            <div
+              role="note"
+              className="flex items-center gap-2 border-t border-amber-400/25 bg-[#16082c]/95 px-5 py-2 text-[10.5px] sm:text-[11px] leading-snug text-purple-100/90 z-20 shrink-0"
+            >
+              <Info className="h-3.5 w-3.5 text-amber-300 shrink-0" />
+              <span>
+                <strong className="text-amber-200 font-semibold">Spectral Note:</strong> Our Ghost Counselor uses AI to brainstorm paths with you. Always double-check facts, salaries, and big decisions with a real-world mentor.
+              </span>
             </div>
           </div>
         </main>
