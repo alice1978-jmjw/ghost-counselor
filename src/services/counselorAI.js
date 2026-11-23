@@ -909,7 +909,8 @@ export async function getGhostCounselorResponse({
   stageIndex = 0,
   apiKey = '',
   currentVibe = null,
-  facialAnalysis = null
+  facialAnalysis = null,
+  aiMode = 'cloud'
 }) {
   // Normalize profile (supports unified soulProfile or legacy currentTraits)
   const baseProfile = soulProfile
@@ -1005,50 +1006,27 @@ export async function getGhostCounselorResponse({
       ? STAGE_NEXT_QUESTIONS[stageIndex]
       : 'Ask 1 specific follow-up question aligned with their Soul Dossier that helps narrow down their ideal career or 90-day next step.';
 
-  // Extract facial biometrics from MediaPipe Face Landmarker
+  // Extract facial biometrics locally for client-side demeanor & voice softening ONLY
+  // (Privacy Guarantee: Webcam biometric scores are NEVER transmitted to external AI APIs)
   const effectiveFacial =
     facialAnalysis ||
     currentVibe?.facialAnalysis ||
     (currentVibe?.stressScore !== undefined ? currentVibe : null);
 
   const stress = effectiveFacial?.stressScore ?? 0;
-  const confusion = effectiveFacial?.confusionScore ?? 0;
-  const browTension = effectiveFacial?.browTension ?? 0;
-  const mouthCurvature = effectiveFacial?.mouthCurvature ?? 0;
-  const isAvoidingEyeContact = Boolean(effectiveFacial?.isAvoidingEyeContact);
-  const isFrustrated = Boolean(effectiveFacial?.isFrustrated);
-  const isAnxious = Boolean(effectiveFacial?.isAnxious);
+  const isTextDistressed = /\b(frustrated|anxious|overwhelmed|stressed|cooked)\b/i.test(userMessage);
   const isDistressed = Boolean(
     effectiveFacial?.isDistressed ||
-      isFrustrated ||
-      isAnxious ||
-      isAvoidingEyeContact ||
+      effectiveFacial?.isFrustrated ||
+      effectiveFacial?.isAnxious ||
+      effectiveFacial?.isAvoidingEyeContact ||
       stress >= 38 ||
-      confusion >= 42 ||
-      /\b(frustrated|anxious|overwhelmed|avoiding eye contact|stressed|cooked)\b/i.test(userMessage)
+      isTextDistressed
   );
 
-  let biometricsPromptBlock = '';
-  if (effectiveFacial) {
-    biometricsPromptBlock = `Student Real-Time Facial Biometrics (MediaPipe Face Landmarker):
-  * Stress Score: ${stress}% | Confusion Score: ${confusion}%
-  * Eyebrows: ${(browTension * 100).toFixed(0)}% furrow/tension (${effectiveFacial.browState || 'Relaxed'})
-  * Mouth: ${effectiveFacial.mouthState || 'Neutral'} (Curvature: ${mouthCurvature > 0 ? `+${mouthCurvature}` : mouthCurvature})
-  * Eye Contact: ${isAvoidingEyeContact ? 'AVOIDING EYE CONTACT (Averting gaze / looking away)' : 'Direct Eye Contact'}
-  * Emotional State: ${effectiveFacial.stateLabel || (isFrustrated ? 'Frustrated' : isAnxious ? 'Anxious' : 'Neutral')}`;
-  }
-
-  if (isDistressed) {
-    biometricsPromptBlock += `${biometricsPromptBlock ? '\n' : ''}- MANDATORY COMFORT & SOFTENED VOICE DIRECTIVE (USER LOOKS FRUSTRATED, ANXIOUS, OR IS AVOIDING EYE CONTACT):
-  * Immediately soften your voice and adopt a calm, gentle, zero-pressure demeanor.
-  * Begin your response with: "Take your time, I know thinking about the future is overwhelming."
-  * Validate their feelings warmly, drop any high-energy hype, and offer one small, reassuring next step.`;
-  }
-
-  const vibeContextLine = biometricsPromptBlock
-    ? biometricsPromptBlock
-    : currentVibe
-    ? `Student Facial Expression Observed via Scrying Mirror: ${currentVibe.label} (${currentVibe.description}). Gently and warmly acknowledge their facial vibe in your reply.`
+  // Text-only comfort directive (only if the user explicitly wrote stressed/overwhelmed words)
+  const textComfortDirective = isTextDistressed
+    ? `- COMFORT & SOFTENED VOICE DIRECTIVE: The student explicitly mentioned feeling overwhelmed, stressed, or cooked. Validate their feelings warmly, drop high-energy hype, and offer one small, reassuring next step.`
     : '';
 
   const dossierPromptBlock = formatDossierContextForPrompt(updatedProfile, updatedDossier);
@@ -1060,7 +1038,7 @@ export async function getGhostCounselorResponse({
 - STEP 1: Directly and specifically answer or respond to the user's exact message ("${userMessage}") in 2 to 3 clear, helpful sentences, strictly referencing and staying aligned with their live Soul Dossier data above (including their Crisis Simulator 3D results, reality constraints, and Top 3 Career Arcana matches when populated).
 - STEP 2: Guide the user forward by ending your reply with ONE clear question: ${isPresetPillClick ? nextGuidanceHint : 'Ask ONE specific follow-up question about what they just asked that stays aligned with their Soul Dossier and helps advance their career plan.'}
 ${cityContextLine ? `- ${cityContextLine}` : ''}
-${vibeContextLine ? `- ${vibeContextLine}` : ''}
+${textComfortDirective ? textComfortDirective : ''}
 - STEP 3: On a new line at the very end, output the exact separator ---OPTIONS--- followed by 4 short clickable reply options (1 per line, max 8 words each, ending with 1 emoji, no numbering) that directly answer the question you just asked at the end of your reply!`;
 
   const parseReplyAndOptions = (rawContent) => {
@@ -1158,96 +1136,99 @@ ${vibeContextLine ? `- ${vibeContextLine}` : ''}
     };
   };
 
-  // ── LAYER 1: Optional User-Provided Google Gemini API Key ─────────────────
-  if (effectiveKey) {
-    try {
-      const genAI = new GoogleGenAI({ apiKey: effectiveKey });
+  // ── CLOUD PROCESSING (Skipped entirely when user selects 100% Offline Mode) ──
+  if (aiMode !== 'offline') {
+    // ── LAYER 1: Optional User-Provided Google Gemini API Key ─────────────────
+    if (effectiveKey) {
+      try {
+        const genAI = new GoogleGenAI({ apiKey: effectiveKey });
 
-      const rawHistory = conversationHistory.slice(-8).map((msg) => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text || ' ' }]
-      }));
+        const rawHistory = conversationHistory.slice(-8).map((msg) => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text || ' ' }]
+        }));
 
-      while (rawHistory.length > 0 && rawHistory[0].role === 'model') {
-        rawHistory.shift();
-      }
-
-      const sdkHistory = rawHistory.reduce((acc, entry) => {
-        if (acc.length === 0 || acc[acc.length - 1].role !== entry.role) {
-          acc.push(entry);
-        } else {
-          acc[acc.length - 1] = entry;
+        while (rawHistory.length > 0 && rawHistory[0].role === 'model') {
+          rawHistory.shift();
         }
-        return acc;
-      }, []);
 
-      const chat = genAI.chats.create({
-        model: 'gemini-2.0-flash',
-        config: {
-          systemInstruction: fastSystemPrompt,
-          temperature: 0.7
-        },
-        history: sdkHistory
+        const sdkHistory = rawHistory.reduce((acc, entry) => {
+          if (acc.length === 0 || acc[acc.length - 1].role !== entry.role) {
+            acc.push(entry);
+          } else {
+            acc[acc.length - 1] = entry;
+          }
+          return acc;
+        }, []);
+
+        const chat = genAI.chats.create({
+          model: 'gemini-2.0-flash',
+          config: {
+            systemInstruction: fastSystemPrompt,
+            temperature: 0.7
+          },
+          history: sdkHistory
+        });
+
+        const sdkResult = await chat.sendMessage({ message: userMessage });
+        const rawText = sdkResult?.text?.trim();
+
+        if (rawText) {
+          return buildValidatedReturn(rawText, 'inspired', null, true);
+        }
+      } catch (err) {
+        console.warn('Layer 1 (Gemini API) unavailable, switching to Layer 2 (Zero-Key Free AI):', err);
+      }
+    }
+
+    // ── LAYER 2: Zero-Key Free AI Engine (Pollinations OpenAI-Compatible Endpoint) ──
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 35000);
+
+      const openAIMessages = [
+        { role: 'system', content: fastSystemPrompt },
+        ...conversationHistory.slice(-6).map((msg) => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text || ''
+        })),
+        { role: 'user', content: userMessage }
+      ];
+
+      const requestPayload = JSON.stringify({
+        model: 'openai-fast',
+        reasoning_effort: 'low',
+        messages: openAIMessages
       });
 
-      const sdkResult = await chat.sendMessage({ message: userMessage });
-      const rawText = sdkResult?.text?.trim();
-
-      if (rawText) {
-        return buildValidatedReturn(rawText, 'inspired', null, true);
-      }
-    } catch (err) {
-      console.warn('Layer 1 (Gemini API) unavailable, switching to Layer 2 (Zero-Key Free AI):', err);
-    }
-  }
-
-  // ── LAYER 2: Zero-Key Free AI Engine (Pollinations OpenAI-Compatible Endpoint) ──
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000);
-
-    const openAIMessages = [
-      { role: 'system', content: fastSystemPrompt },
-      ...conversationHistory.slice(-6).map((msg) => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.text || ''
-      })),
-      { role: 'user', content: userMessage }
-    ];
-
-    const requestPayload = JSON.stringify({
-      model: 'openai-fast',
-      reasoning_effort: 'low',
-      messages: openAIMessages
-    });
-
-    let freeRes = await fetch('/api/free-ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: requestPayload
-    }).catch(() => null);
-
-    if (!freeRes || !freeRes.ok) {
-      freeRes = await fetch('https://text.pollinations.ai/openai', {
+      let freeRes = await fetch('/api/free-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: requestPayload
-      });
-    }
+      }).catch(() => null);
 
-    clearTimeout(timeoutId);
-
-    if (freeRes.ok) {
-      const data = await freeRes.json();
-      const contentStr = data?.choices?.[0]?.message?.content?.trim();
-      if (contentStr) {
-        return buildValidatedReturn(contentStr, 'inspired', null, true);
+      if (!freeRes || !freeRes.ok) {
+        freeRes = await fetch('https://text.pollinations.ai/openai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: requestPayload
+        });
       }
+
+      clearTimeout(timeoutId);
+
+      if (freeRes.ok) {
+        const data = await freeRes.json();
+        const contentStr = data?.choices?.[0]?.message?.content?.trim();
+        if (contentStr) {
+          return buildValidatedReturn(contentStr, 'inspired', null, true);
+        }
+      }
+    } catch (freeErr) {
+      console.warn('Layer 2 (Zero-Key Free AI) offline or timed out, using Layer 3 (Smart Local Engine):', freeErr);
     }
-  } catch (freeErr) {
-    console.warn('Layer 2 (Zero-Key Free AI) offline or timed out, using Layer 3 (Smart Local Engine):', freeErr);
   }
 
   // ── LAYER 3: Smart Offline Local Engine (100% Offline Fallback, Strictly Synced) ──

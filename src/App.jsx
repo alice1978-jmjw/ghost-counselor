@@ -21,7 +21,8 @@ import {
   ArrowLeft,
   RefreshCw,
   Send,
-  Info
+  Info,
+  Shield
 } from 'lucide-react';
 import FogOverlay from './components/FogOverlay';
 import GhostSphere3D from './components/GhostSphere3D';
@@ -29,6 +30,7 @@ import SoulDossierModal from './components/SoulDossierModal';
 import ArcadeAssessmentModal from './components/ArcadeAssessmentModal';
 import ScryingMirror from './components/ScryingMirror';
 import GreenFogBurst from './components/GreenFogBurst';
+import AiConsentModal from './components/AiConsentModal';
 import {
   Pumpkin,
   Candle,
@@ -104,10 +106,13 @@ export default function App() {
   }, [soulProfile]);
   const [sessionResetKey, setSessionResetKey] = useState(0);
 
-  // Modals
+  // Modals & AI Consent
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isArcadeOpen, setIsArcadeOpen] = useState(false);
+  const [aiMode, setAiMode] = useState(() => sessionStorage.getItem('ghost_ai_mode') || '');
+  const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+  const pendingMessageRef = useRef(null);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('ghost_gemini_api_key') || '');
   const [tempKey, setTempKey] = useState(apiKey);
   const [isScryingActive, setIsScryingActive] = useState(false);
@@ -363,7 +368,7 @@ export default function App() {
   };
 
   const handleSendMessage = async (overrideText, options = {}) => {
-    const { overrideVibe = null, isFacialAutoCheck = false } = options;
+    const { overrideVibe = null, isFacialAutoCheck = false, forcedAiMode = null } = options;
     const textToSend = (overrideText ?? inputText).trim();
     if (!textToSend || isThinking) return;
 
@@ -376,6 +381,14 @@ export default function App() {
     if (/^(play|resume|replay)\s+crisis\s+simulator\s+3d/i.test(textToSend)) {
       soundEngine.playClickSound();
       setIsArcadeOpen(true);
+      return;
+    }
+
+    // Pre-flight check: ensure user has made an informed AI Mode choice before the first cloud AI call
+    const effectiveAiMode = forcedAiMode || aiMode || sessionStorage.getItem('ghost_ai_mode');
+    if (!effectiveAiMode) {
+      pendingMessageRef.current = { overrideText: textToSend, options };
+      setIsConsentModalOpen(true);
       return;
     }
 
@@ -432,7 +445,8 @@ export default function App() {
       stageIndex,
       apiKey,
       currentVibe: activeFacial,
-      facialAnalysis: activeFacial
+      facialAnalysis: activeFacial,
+      aiMode: effectiveAiMode
     });
 
     setIsThinking(false);
@@ -540,6 +554,26 @@ export default function App() {
     }
 
     handleSendMessage(textToSend, { overrideVibe: vibe, isFacialAutoCheck: true });
+  };
+
+  const handleSelectAiMode = (selectedMode) => {
+    sessionStorage.setItem('ghost_ai_mode', selectedMode);
+    setAiMode(selectedMode);
+    setIsConsentModalOpen(false);
+    soundEngine.playTraitChime(selectedMode === 'offline' ? 'peace' : 'passion');
+
+    if (pendingMessageRef.current) {
+      const { overrideText, options } = pendingMessageRef.current;
+      pendingMessageRef.current = null;
+      handleSendMessage(overrideText, { ...options, forcedAiMode: selectedMode });
+    }
+  };
+
+  const handleToggleAiMode = () => {
+    const nextMode = aiMode === 'offline' ? 'cloud' : 'offline';
+    sessionStorage.setItem('ghost_ai_mode', nextMode);
+    setAiMode(nextMode);
+    soundEngine.playTraitChime(nextMode === 'offline' ? 'peace' : 'passion');
   };
 
   const handleToggleVoice = () => {
@@ -924,6 +958,8 @@ export default function App() {
     setIsSpeaking(false);
     sessionStorage.removeItem('ghost_auth_role');
     sessionStorage.removeItem('ghost_user_name');
+    sessionStorage.removeItem('ghost_ai_mode');
+    setAiMode('');
     setAuthRole('');
     setLoginId('');
     setLoginPasscode('');
@@ -1878,15 +1914,58 @@ export default function App() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* ── AI Guidance Disclaimer Footer Strip ── */}
+            {/* ── AI Privacy & Mode Disclosure Footer Strip ── */}
             <div
               role="note"
-              className="flex items-center gap-2 border-t border-amber-400/25 bg-[#16082c]/95 px-5 py-2 text-[10.5px] sm:text-[11px] leading-snug text-purple-100/90 z-20 shrink-0"
+              className="flex flex-wrap items-center justify-between gap-2 border-t border-purple-500/25 bg-[#140628]/95 px-4 py-2 text-[10.5px] sm:text-[11px] leading-snug text-purple-200/90 z-20 shrink-0"
             >
-              <Info className="h-3.5 w-3.5 text-amber-300 shrink-0" />
-              <span>
-                <strong className="text-amber-200 font-semibold">Spectral Note:</strong> Our Ghost Counselor uses AI to brainstorm paths with you. Always double-check facts, salaries, and big decisions with a real-world mentor.
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Active Mode Pill & Toggle */}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  aiMode === 'offline'
+                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
+                    : 'bg-purple-900/60 border-purple-400/40 text-purple-200'
+                }`}>
+                  {aiMode === 'offline' ? (
+                    <Lock className="h-2.5 w-2.5 text-emerald-400" />
+                  ) : (
+                    <Sparkles className="h-2.5 w-2.5 text-amber-300" />
+                  )}
+                  {aiMode === 'offline' ? 'Offline Mode (100% Local)' : 'Cloud AI (Gemini)'}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleToggleAiMode}
+                  className="text-[10.5px] font-medium text-amber-300 hover:text-amber-200 underline cursor-pointer transition-colors"
+                  title="Toggle between Cloud AI and Offline mode"
+                >
+                  Switch to {aiMode === 'offline' ? 'Cloud AI' : 'Offline Mode'}
+                </button>
+
+                <span className="hidden sm:inline text-purple-500/40">•</span>
+
+                {/* Biometric Privacy Guarantee */}
+                <span className="text-slate-300/90 flex items-center gap-1 text-[10.5px]">
+                  <Shield className="h-3 w-3 text-emerald-400 shrink-0 inline" />
+                  Webcam & facial scores stay 100% on-device. Never shared.
+                </span>
+              </div>
+
+              {/* Advisory Disclaimer & Modal Re-opener */}
+              <div className="flex items-center gap-2 text-[10px] text-purple-300/70">
+                <span className="flex items-center gap-1">
+                  <Info className="h-3 w-3 text-amber-300/80 shrink-0 inline" />
+                  AI advice is for exploration. Verify with real mentors.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsConsentModalOpen(true)}
+                  className="text-[10px] text-purple-300/80 hover:text-white underline cursor-pointer"
+                >
+                  Privacy Details
+                </button>
+              </div>
             </div>
           </div>
         </main>
@@ -1993,6 +2072,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* AI Disclosure & Consent Modal */}
+      <AiConsentModal
+        isOpen={isConsentModalOpen}
+        onSelectMode={handleSelectAiMode}
+        currentMode={aiMode}
+      />
     </div>
   );
 }
