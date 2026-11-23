@@ -87,7 +87,7 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
 ## 🔑 Spectral Gate Access
 
 The sanctuary gate supports two clean access modes without exposing private passcodes in source code:
-* **Passcode Login (Judge & Dev)**: Passcodes are configured locally in `.env` (`JUDGE_PASSCODE` / `DEV_PASSCODE`), salted & hashed with SHA-256 at build time by `vite.config.js`, and verified client-side against the hash. Also supports private 1-click URL entry (`?judge=<passcode>`), which verifies the hash and immediately strips the query parameter from the address bar.
+* **Passcode Login (Judge & Dev)**: Passcodes are configured locally in `.env` (`JUDGE_PASSCODE` / `DEV_PASSCODE`), salted & hashed with SHA-256 at build time by `vite.config.js`, and verified client-side against the hash.
 * **Guest Access (Formspree)**: Switch to the **Guest Access** tab and enter any valid email to enter immediately as a **Guest Seeker**.
 
 ---
