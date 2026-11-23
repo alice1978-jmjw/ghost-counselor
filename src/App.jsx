@@ -216,7 +216,6 @@ export default function App() {
           const guestEmail = confirmedEmail || sessionStorage.getItem('ghost_pending_email') || 'confirmed_guest';
           const storedName = urlFirstName || sessionStorage.getItem('ghost_pending_name') || sessionStorage.getItem('ghost_user_name');
           sessionStorage.setItem('ghost_auth_role', 'Guest');
-          sessionStorage.setItem('ghost_user_email', guestEmail);
           if (storedName) {
             sessionStorage.setItem('ghost_user_name', storedName);
             setGuestFirstName(storedName);
@@ -227,14 +226,12 @@ export default function App() {
           setAuthRole('Guest');
           soundEngine.playTraitChime('passion');
 
-          // Analytics
+          // Analytics (Strictly anonymized: event name and guest role only)
           try {
             window.dataLayer = window.dataLayer || [];
             window.dataLayer.push({
               event: 'counselor_email_link_confirmed',
-              user_role: 'Guest',
-              email: guestEmail,
-              timestamp: new Date().toISOString()
+              user_role: 'Guest'
             });
           } catch {
             // Ignore
@@ -888,25 +885,20 @@ export default function App() {
     const confirmedName = result.firstName || guestFirstName;
 
     sessionStorage.setItem('ghost_auth_role', 'Guest');
-    sessionStorage.setItem('ghost_user_email', confirmedEmail);
     if (confirmedName) {
       sessionStorage.setItem('ghost_user_name', confirmedName);
       setGuestFirstName(confirmedName);
     }
 
-    // 1. Analytics
+    // 1. Analytics (Strictly anonymized: event name and guest role only)
     try {
       window.dataLayer = window.dataLayer || [];
       window.dataLayer.push({
         event: 'counselor_guest_access_granted',
-        user_role: 'Guest',
-        email: confirmedEmail,
-        first_name: confirmedName,
-        signup_timestamp: new Date().toISOString()
+        user_role: 'Guest'
       });
       if (typeof window.gtag === 'function') {
         window.gtag('event', 'sign_up', {
-          method: 'FormspreeGuestAccess',
           user_role: 'Guest'
         });
       }
@@ -915,8 +907,8 @@ export default function App() {
       // Ignore
     }
 
-    // 2. Server access ping
-    fetch(`./?auth_event=guest_access&email=${encodeURIComponent(confirmedEmail)}&t=${Date.now()}`, {
+    // 2. Server access ping (anonymized: event and role only, zero PII)
+    fetch(`./?auth_event=guest_access&role=Guest&t=${Date.now()}`, {
       method: 'GET',
       cache: 'no-store'
     }).catch(() => {});
@@ -931,7 +923,6 @@ export default function App() {
     stopGhostSpeech(setMouthOpenness);
     setIsSpeaking(false);
     sessionStorage.removeItem('ghost_auth_role');
-    sessionStorage.removeItem('ghost_user_email');
     sessionStorage.removeItem('ghost_user_name');
     setAuthRole('');
     setLoginId('');

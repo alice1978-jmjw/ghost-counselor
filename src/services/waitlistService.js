@@ -80,21 +80,7 @@ export async function submitGuestAccessEmail(email, { firstName = '' } = {}) {
   }
 
   // 2. Local preview fallback (when Formspree ID is not set)
-  try {
-    const existing = JSON.parse(localStorage.getItem('ghost_guest_subscribers') || '[]');
-    if (!existing.some((entry) => entry.email === cleanEmail)) {
-      existing.push({
-        email: cleanEmail,
-        firstName: cleanFirstName,
-        submittedAt: new Date().toISOString(),
-        source: 'local_preview'
-      });
-      localStorage.setItem('ghost_guest_subscribers', JSON.stringify(existing));
-    }
-  } catch {
-    // Ignore
-  }
-
+  // Anonymized: do not persist cleartext email or PII to local browser storage
   await new Promise((r) => setTimeout(r, 400));
 
   return {
