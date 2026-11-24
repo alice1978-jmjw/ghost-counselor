@@ -52,6 +52,11 @@ Our repository includes the complete **`/.kiro`** directory at the project root 
    - [`assessment-and-scrying-sync.json`](.kiro/hooks/assessment-and-scrying-sync.json): Automated hook verifying that Crisis Simulator 3D keeps core dimensions hidden up front, rotates portal colors/positions across scenarios, supports click/tap + keyboard movement, and keeps Scrying Mirror facial telemetry 100% local.
 4. **Kiro MCP Configuration (`.kiro/settings/mcp.json`)**:
    - [`mcp.json`](.kiro/settings/mcp.json): Context7 MCP server setup used to reference accurate MediaPipe Tasks Vision blendshapes/landmarks, Three.js WebGL APIs, and Google GenAI SDK methods without hallucinations.
+5. **Kiro CLI Custom Agent (`.kiro/agents/ghost-auditor.json`)**:
+   - [`ghost-auditor.json`](.kiro/agents/ghost-auditor.json): Read-only semantic safety, privacy, and psychometric compliance auditor for **Kiro CLI** (`kiro-cli`). Reuses `.kiro/rules.md`, `.kiro/specs/`, and `.kiro/steering/` to audit `988` crisis guardrails, Cloud vs. Offline AI consent, on-device webcam privacy, SHA-256 role auth, 3D psychometric de-biasing, Zod schemas, and hybrid Tarot filtering right from the terminal before commits or deploys:
+     ```bash
+     kiro-cli chat --agent ghost-auditor "Run a full pre-deploy compliance audit and output the PASS/FAIL table."
+     ```
 
 ---
 
