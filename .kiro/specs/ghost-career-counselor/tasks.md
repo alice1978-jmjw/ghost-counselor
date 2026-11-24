@@ -7,7 +7,7 @@
 - [x] **Task 1.2: Dual-Engine Counseling AI & Crisis Guardrails**
   - [x] Implement mandatory crisis intervention (`isSafetyInterventionTriggered` & `MANDATORY_SAFETY_RESPONSE` with `988` resources).
   - [x] Implement "crashing out" frustration de-escalation and empathetic boundary reframing.
-  - [x] Build 10-stage progression engine with Google Gemini (`gemini-2.5-flash`), open-ended user question answering, and zero-config offline fallback.
+  - [x] Build 10-stage progression engine with 3-layer cascade (Google Gemini `gemini-2.0-flash` → zero-key Free AI → deterministic offline fallback), open-ended user question answering, and zero-config testing.
   - [x] Build real-time trait extraction (`Passions`, `Strengths`, and `Reframed Weaknesses`).
 
 ## Iteration 2: Costume Contest Sanctuary, Outfit Switcher & Soul Dossier
@@ -35,3 +35,16 @@
   - [x] Replace exposed start-screen dimension names with 4 visual locked mystery archetype cards (`???`).
   - [x] Rotate portal compass directions and goalpost colors across all 10 scenarios to prevent color or directional bias.
   - [x] Build interactive card-based **Recommended Pathways** on the completion screen and wire one-click sync into the Ghost Counselor chat and Soul Dossier.
+
+## Iteration 5: Hybrid Custom Tarot Arcana, AI Privacy Consent & Security Hardening
+- [x] **Task 5.1: Unified Soul Dossier Engine & Hybrid Custom Tarot Cards**
+  - [x] Centralize Chat, Crisis Simulator 3D, and Soul Dossier state inside `src/services/soulDossierEngine.js` with strict Empty → Live sync and unclamped raw-score ranking across the 14 classic Tarot cards.
+  - [x] Add `CustomTarotCardSchema` (Zod) in `src/ghostSchema.js` and hybrid AI + offline custom Tarot card synthesis (`ARCANA XV+`) for uncovered career interests (e.g., beauty/cosmetics, watch repair, ceramic pottery, coffee roasting).
+  - [x] Hide unaligned filler cards whenever any `💬 Chat Aligned` Tarot card is present.
+- [x] **Task 5.2: Pre-Flight AI Consent, Privacy Hardening & Spectral Note Transparency**
+  - [x] Add `src/components/AiConsentModal.jsx` and enforce Cloud AI vs. 100% Offline mode inside `src/services/counselorAI.js`.
+  - [x] Strip webcam biometric scores from outgoing cloud prompts, sanitize analytics events, and eliminate local guest PII storage.
+  - [x] Add the **Spectral Note** AI guidance disclaimer to the Chat panel footer, Soul Dossier modal, Print/PDF output, and Markdown (`.md`) scroll export.
+- [x] **Task 5.3: Build-Time SHA-256 Static Auth & UI Polish**
+  - [x] Hash private `JUDGE_PASSCODE` and `DEV_PASSCODE` env vars with salted SHA-256 at build time in `vite.config.js` and verify client-side via `src/utils/passcodeHash.js` (including private `?judge=` magic links).
+  - [x] Align Soul Dossier's pinned top-right close button (`X`) with Crisis Simulator 3D and streamline chat section headers.

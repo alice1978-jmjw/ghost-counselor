@@ -92,3 +92,7 @@ When the user has the **Scrying Mirror** active, on-device MediaPipe facial land
 ### 2. Crisis Simulator 3D Archetype Integration
 When the user completes the **10-scenario 3D Crisis Simulator** (`Maker`, `Architect`, `Catalyst`, `Visionary`) and syncs their unlocked archetype and selected pathway card:
 * Celebrate their unlocked archetype title and dominant instinct score, weave their discovered passions and strengths into the Soul Dossier, and offer tailored follow-up advice on their chosen career pathway.
+
+### 3. Hybrid Custom Tarot Synthesis & Privacy Boundary
+* When a user expresses interest in a career outside the 14 classic Tarot Career Arcana cards in Cloud AI mode, synthesize a tailored custom Tarot card (`---TAROT_CARD---`, validated via `CustomTarotCardSchema`) that strictly obeys Phase 1 financial/location constraints and uses zero em dashes (`—`, `–`, `--`).
+* Never include raw webcam biometric scores or guest PII in external AI prompts; respect the user's Cloud vs. Offline AI consent choice at all times.

@@ -7,12 +7,15 @@
       ".kiro/steering/friendly_ghost_counselor_system_prompt.md",
       ".kiro/rules.md",
       "src/services/counselorAI.js",
+      "src/services/soulDossierEngine.js",
       "src/ghostSchema.js",
-      "src/App.jsx"
+      "src/components/AiConsentModal.jsx",
+      "src/App.jsx",
+      "vite.config.js"
     ]
   },
   "action": {
     "type": "agentPrompt",
-    "prompt": "Verify that src/services/counselorAI.js, src/ghostSchema.js, and src/App.jsx strictly adhere to .kiro/steering/friendly_ghost_counselor_system_prompt.md and .kiro/rules.md: (1) Only one question is asked per turn while any direct user question is answered first, (2) Phase 1 Reality Check constraints prevent recommending unaffordable 4-year out-of-state universities when finances are tight, (3) all AI responses validate against GhostResponseSchema, and (4) MANDATORY_SAFETY_RESPONSE triggers immediately on crisis keywords."
+    "prompt": "Verify that src/services/counselorAI.js, src/services/soulDossierEngine.js, src/ghostSchema.js, src/components/AiConsentModal.jsx, src/App.jsx, and vite.config.js strictly adhere to .kiro/steering/friendly_ghost_counselor_system_prompt.md and .kiro/rules.md: (1) Only one question is asked per turn while any direct user question is answered first, (2) Phase 1 Reality Check constraints prevent recommending unaffordable 4-year out-of-state universities when finances are tight, (3) all AI responses validate against GhostResponseSchema and custom Tarot cards validate against CustomTarotCardSchema with zero em dashes, (4) MANDATORY_SAFETY_RESPONSE triggers immediately on crisis keywords, (5) Cloud vs. Offline AI consent is enforced and webcam biometrics are never sent to external APIs, (6) when any Chat Aligned Tarot card exists, unaligned filler cards are hidden while keeping all 14 classic cards intact, and (7) no plaintext role passcodes exist in source or client bundles."
   }
 }

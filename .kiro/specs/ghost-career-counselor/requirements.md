@@ -91,3 +91,29 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 3. WHILE playing a scenario THEN the user SHALL be able to steer the 3D ghost avatar into any of the 4 answer portals using a **single Mouse Click / Touch Tap** (on a portal or floor) or **WASD / Arrow Keys**.
 4. WHEN transitioning across the 10 scenarios THEN the system SHALL rotate **both** the compass direction (`top`, `bottom`, `left`, `right`) and the goalpost color (`Red`, `Blue`, `Yellow`, `Purple`) for each trait so users cannot develop a directional or color bias.
 5. WHEN all 10 scenarios complete THEN the system SHALL reveal the unlocked archetype, a dimension score breakdown, and an interactive **4-card grid of Recommended Pathways** that syncs directly into the Ghost Counselor chat and Soul Dossier.
+
+---
+
+### Iteration 5: Hybrid Custom Tarot Arcana, AI Privacy Consent & Security Hardening
+
+### Requirement 7: Unified Empty-to-Live Soul Dossier & Hybrid Custom Tarot Cards
+**User Story:** As a student exploring a niche career outside the 14 classic pathways (such as beauty/cosmetics, watch repair, ceramic pottery, or coffee roasting), I want my Soul Dossier to start genuinely empty and generate a tailored custom Tarot Career Arcana card without showing unrelated filler careers.
+
+#### Acceptance Criteria
+1. WHEN a user opens the **Soul Dossier** before chatting or playing Crisis Simulator 3D THEN the system SHALL render a clean **Empty State** with zero fabricated traits or career cards.
+2. WHEN a user discusses a career interest outside the 14 classic `CAREER_ARCANA_CATALOG` cards THEN the system SHALL detect the uncovered interest (`detectUncoveredCareerInterest`) and synthesize a Zod-validated (`CustomTarotCardSchema`) custom Tarot card (`ARCANA XV+`) via Cloud AI (when Cloud mode is consented) or a local constraint-aware offline builder (`buildOfflineCustomTarotCard`), while keeping all 14 classic cards intact.
+3. WHEN one or more ranked Tarot cards carry the **`💬 Chat Aligned`** badge THEN `generatePersonalizedDossier` SHALL display only `💬 Chat Aligned` cards and hide unaligned filler cards in slots #2 and #3.
+
+### Requirement 8: Pre-Flight AI Consent, Biometric Privacy & Spectral Note Transparency
+**User Story:** As a privacy-conscious student, I want to choose between Cloud AI and 100% Offline local mode before sending my first message, know that my webcam emotion scores never leave my device, and see a clear AI disclaimer on generated guidance.
+
+#### Acceptance Criteria
+1. WHEN a user sends their first chat message without a saved AI mode preference THEN `AiConsentModal.jsx` SHALL prompt them to choose **Cloud AI** or **100% Offline Mode**, and `counselorAI.js` SHALL skip all external AI requests whenever `aiMode === 'offline'`.
+2. WHILE Cloud AI mode is active THEN outgoing prompts SHALL never include raw webcam biometric telemetry scores, and the **Spectral Note** AI disclaimer SHALL remain visible in both the Chat panel footer and the Soul Dossier (including Print/PDF and `.md` exports).
+
+### Requirement 9: Privacy-Preserving Static Role Authentication
+**User Story:** As a hackathon maintainer publishing an open-source repository, I want Judge and Dev passcodes to stay completely out of GitHub and out of plaintext frontend bundles while still supporting role login and private 1-click Judge links.
+
+#### Acceptance Criteria
+1. WHEN Vite builds or serves the app THEN `vite.config.js` SHALL read non-`VITE_` `JUDGE_PASSCODE` and `DEV_PASSCODE` values from local `.env`, compute salted SHA-256 digests at build time, and expose only 64-character hex hashes (`__JUDGE_PASS_HASH__`, `__DEV_PASS_HASH__`) to the client.
+2. WHEN a Judge signs in via passcode or private `?judge=<passcode>` link THEN `src/utils/passcodeHash.js` SHALL verify the salted SHA-256 hash client-side, strip query credentials from the URL bar via `history.replaceState`, and emit sanitized role login analytics without exposing guest PII.

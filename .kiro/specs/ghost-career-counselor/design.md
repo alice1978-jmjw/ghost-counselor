@@ -20,9 +20,10 @@ The system follows a layered architecture with strict separation between state m
 - Manages conversation history, extracted user traits (passions, strengths, constraints), and multimodal session state
 - Routes between text chat, voice interaction, Scrying Mirror biometrics, and 3D Crisis Simulator states
 
-**Layer 2: Dual-Engine AI System**
-- **Primary**: Google Gemini 2.5 Flash with steering prompt injection and Zod schema validation (`GhostResponseSchema`)
-- **Fallback**: Deterministic stage-aware pattern matching engine that provides full counseling flow without external dependencies
+**Layer 2: 3-Layer Resilient AI System**
+- **Primary (Layer 1)**: Optional Google Gemini (`gemini-2.0-flash`) with steering prompt injection and Zod schema validation (`GhostResponseSchema`, `CustomTarotCardSchema`)
+- **Secondary (Layer 2)**: Zero-key Free AI endpoint (skipped automatically when user selects 100% Offline mode in `AiConsentModal.jsx`)
+- **Fallback (Layer 3)**: Deterministic stage-aware pattern matching & local custom Tarot synthesizer that provides full counseling flow with zero external network calls
 - **Safety Layer**: Crisis intervention guardrail that detects self-harm language and surfaces 988 Lifeline resources
 
 **Layer 3: Multimodal I/O Subsystems**
@@ -106,6 +107,15 @@ flowchart TD
    - **Pre-Test Secrecy**: The start screen displays 4 icon-driven locked mystery cards (`???`) rather than exposing `Maker`, `Architect`, `Catalyst`, and `Visionary` ahead of time.
    - **Per-Scenario Rotation**: Across the 10 crisis scenarios, each trait rotates across different compass directions (`top`, `bottom`, `left`, `right`) and portal colors (`#E74C3C`, `#3498DB`, `#F1C40F`, `#9B59B6`) so players never form a color or directional habit.
    - **Card-Based Pathway Sync**: Upon completing all 10 scenarios, recommended career pathways are presented as selectable cards that sync directly into the Ghost Counselor's conversation memory and unlock the Soul Dossier.
+
+### Iteration 5: Unified `soulDossierEngine.js`, Hybrid Custom Tarot Arcana & Privacy Hardening
+1. **Single-Source-of-Truth `soulDossierEngine.js` & Hybrid Custom Tarot Synthesis**:
+   - Unified all Chat traits, Phase 1 constraints, Phase 2 energy preferences, and Crisis Simulator 3D portal choices into one `soulProfile` model that starts in a strict Empty State.
+   - Preserved all 14 classic Tarot Career Arcana cards (`I`–`XIV`) while adding `detectUncoveredCareerInterest()`, `buildOfflineCustomTarotCard()`, and Zod-validated Cloud AI `---TAROT_CARD---` synthesis (`CustomTarotCardSchema`, `ARCANA XV+`) so niche interests outside the 14 cards receive tailored Tarot cards.
+   - Filtered unaligned filler cards whenever any `💬 Chat Aligned` card is present so the Soul Dossier stays strictly relevant to what the student discussed.
+2. **Pre-Flight AI Consent, Privacy & Build-Time Salted SHA-256 Gate**:
+   - Added `AiConsentModal.jsx` to let users explicitly choose Cloud AI vs. 100% Offline local mode, stripped webcam biometric scores from outgoing cloud prompts, and added the **Spectral Note** AI disclaimer across Chat and Soul Dossier exports.
+   - Moved Judge and Dev passcodes into gitignored `.env` (`JUDGE_PASSCODE`, `DEV_PASSCODE`) hashed at build time with salted SHA-256 in `vite.config.js` and verified client-side via `src/utils/passcodeHash.js`.
 
 ---
 
