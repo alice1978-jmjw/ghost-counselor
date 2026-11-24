@@ -1265,14 +1265,16 @@ export function detectUncoveredCareerInterest(userText) {
 
   // 3. Open-ended career/interest phrase extraction for ANY other niche field
   const openPatterns = [
-    /(?:interested in|passionate about|curious about|into|love|enjoy|dream of being|want to be|wanna be|want to work in|want to get into|want to pursue|career in|job in|work in|line of|field of|industry of)\s+(?:the\s+)?(?:a\s+|an\s+)?([a-z][a-z0-9\s,&/-]{2,44}?)(?:\s+(?:line|field|industry|career|sector|space|business|work))?(?:[.,!?;]|$|\s+(?:and i|but|because|since|however|so i|though))/i
+    /(?:specialist in|specialize in|specializing in|expert in|interested in|passionate about|curious about|into|love|enjoy|dream of being|want to be|wanna be|want to work in|want to get into|getting into|get into|want to pursue|career in|job in|work in|working as|being in|being|becoming|line of|field of|industry of|what about|how about|tell me about|thinking about|considering)\s+(?:the\s+)?(?:a\s+|an\s+)?([a-z][a-z0-9\s,&/-]{2,44}?)(?:\s+(?:line|field|industry|career|sector|space|business|work))?(?:[.,!?;]|$|\s+(?:and i|but|because|since|however|so i|though))/i
   ];
 
   for (const rx of openPatterns) {
     const match = clean.match(rx);
     if (match && match[1]) {
       const candidate = match[1]
-        .replace(/^(the|a|an|my|some|more|doing|being|becoming|studying|learning)\s+/i, '')
+        .replace(/^(the|a|an|my|some|more|doing|being|becoming|studying|learning|specialist in|expert in)\s+/i, '')
+        .replace(/^(a\s+|an\s+)?(specialist|expert)\s+in\s+/i, '')
+        .replace(/^(the|a|an)\s+/i, '')
         .replace(/\s+(stuff|things|area|side|part)$/i, '')
         .trim();
 
@@ -1729,7 +1731,11 @@ export function generatePersonalizedDossier(profileOrTraits, conversationHistory
       matchPercent: displayPercent
     };
   });
-  const topCard = top3[0];
+  const hasChatAlignedCard = top3.some((c) => c.alignmentBadges?.includes('💬 Chat Aligned'));
+  const visibleCareerCards = hasChatAlignedCard
+    ? top3.filter((c) => c.alignmentBadges?.includes('💬 Chat Aligned'))
+    : top3;
+  const topCard = visibleCareerCards[0];
 
   // Dynamic, strictly aligned counselor sign-off
   const signOffParts = [];
@@ -1800,7 +1806,7 @@ export function generatePersonalizedDossier(profileOrTraits, conversationHistory
           }))
         }
       : null,
-    careerCards: top3
+    careerCards: visibleCareerCards
   };
 }
 
