@@ -2,7 +2,7 @@
 // Implements Persona & Tone (Gen-Z Slang Integration), PG-13 Guardrails,
 // Mandatory Safety Interventions, and Strict Soul Dossier Alignment.
 
-import { GhostResponseSchema } from '../ghostSchema.js';
+import { GhostResponseSchema, CustomTarotCardSchema } from '../ghostSchema.js';
 import { getCityData } from '../data/globalEconomy.js';
 import { GoogleGenAI } from '@google/genai';
 import {
@@ -15,6 +15,9 @@ import {
   generatePersonalizedDossier,
   formatDossierContextForPrompt,
   extractCityFromText,
+  detectUncoveredCareerInterest,
+  buildOfflineCustomTarotCard,
+  upsertCustomTarotCard,
   CAREER_ARCANA_CATALOG
 } from './soulDossierEngine.js';
 
@@ -948,12 +951,22 @@ export async function getGhostCounselorResponse({
   }
 
   // 2. IMMEDIATELY UPDATE SOUL PROFILE & RECOMPUTE SOUL DOSSIER BEFORE GENERATING REPLY
-  const { updatedProfile, newlyAdded } = extractProfileUpdatesFromMessage(
+  const { updatedProfile: extractedProfile, newlyAdded } = extractProfileUpdatesFromMessage(
     userMessage,
     stageIndex,
     baseProfile
   );
-  const updatedDossier = generatePersonalizedDossier(updatedProfile);
+
+  // Detect any career interest outside the 14 classic Tarot cards (e.g. beauty/cosmetics/makeup)
+  const uncoveredInterest = detectUncoveredCareerInterest(userMessage);
+  let updatedProfile = extractedProfile;
+  if (uncoveredInterest) {
+    const offlineCustomCard = buildOfflineCustomTarotCard(uncoveredInterest, extractedProfile);
+    if (offlineCustomCard) {
+      updatedProfile = upsertCustomTarotCard(extractedProfile, offlineCustomCard, uncoveredInterest);
+    }
+  }
+  let updatedDossier = generatePersonalizedDossier(updatedProfile);
   const mergedTraits = {
     passions: updatedProfile.passions,
     strengths: updatedProfile.strengths,
@@ -1031,6 +1044,10 @@ export async function getGhostCounselorResponse({
 
   const dossierPromptBlock = formatDossierContextForPrompt(updatedProfile, updatedDossier);
 
+  const customTarotDirective = uncoveredInterest
+    ? `\n- STEP 4: Because the user expressed interest in "${uncoveredInterest.label}" (outside the 14 standard Tarot cards), on a new line after the 4 options output the exact separator ---TAROT_CARD--- followed by ONE valid JSON object (no markdown fences) matching {"arcanaTitle":"The ...","careerTitle":"...","salaryRange":"$XXk - $YYk+","growthOutlook":"+X% ...","whyItFits":"...","shadowProtection":"...","first90Days":["step 1","step 2","step 3"]}. Respect their financial/location constraints and use zero em dashes.`
+    : '';
+
   const fastSystemPrompt = `You are the "Friendly Ghost Counselor", a warm, empathetic, practical career and life advisor for high school graduates and young adults.
 - Use light, natural Gen-Z slang sparingly (e.g. no cap, cooked, locked in, real talk, main character energy). Do NOT use the word "aura". Keep it strictly PG-13.
 - CRITICAL PUNCTUATION RULE: Do NOT use em dashes (—) or double hyphens (--) anywhere in your reply or options. Use standard commas, colons, or periods instead.
@@ -1039,11 +1056,48 @@ export async function getGhostCounselorResponse({
 - STEP 2: Guide the user forward by ending your reply with ONE clear question: ${isPresetPillClick ? nextGuidanceHint : 'Ask ONE specific follow-up question about what they just asked that stays aligned with their Soul Dossier and helps advance their career plan.'}
 ${cityContextLine ? `- ${cityContextLine}` : ''}
 ${textComfortDirective ? textComfortDirective : ''}
-- STEP 3: On a new line at the very end, output the exact separator ---OPTIONS--- followed by 4 short clickable reply options (1 per line, max 8 words each, ending with 1 emoji, no numbering) that directly answer the question you just asked at the end of your reply!`;
+- STEP 3: On a new line at the very end, output the exact separator ---OPTIONS--- followed by 4 short clickable reply options (1 per line, max 8 words each, ending with 1 emoji, no numbering) that directly answer the question you just asked at the end of your reply!${customTarotDirective}`;
 
   const parseReplyAndOptions = (rawContent) => {
-    if (!rawContent) return { replyText: '', options: null };
-    const parts = rawContent.split(/---+\s*OPTIONS\s*---+/i);
+    if (!rawContent) return { replyText: '', options: null, customTarotCard: null };
+
+    // Strip any optional ---TAROT_CARD--- JSON block first so raw JSON never leaks into chat or options
+    const tarotSplit = rawContent.split(/---+\s*TAROT_CARD\s*---+/i);
+    const contentWithoutTarot = (tarotSplit[0] || '').trim();
+    let customTarotCard = null;
+
+    if (tarotSplit[1]) {
+      try {
+        const cleanedJson = tarotSplit[1]
+          .replace(/```json\s*/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        const jsonMatch = cleanedJson.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsedRaw = JSON.parse(jsonMatch[0]);
+          const sanitizedCandidate = {
+            arcanaNumber: parsedRaw.arcanaNumber ? sanitizeNoEmDashes(String(parsedRaw.arcanaNumber)) : undefined,
+            arcanaTitle: sanitizeNoEmDashes(String(parsedRaw.arcanaTitle || '')),
+            careerTitle: sanitizeNoEmDashes(String(parsedRaw.careerTitle || '')),
+            salaryRange: sanitizeNoEmDashes(String(parsedRaw.salaryRange || '')),
+            growthOutlook: sanitizeNoEmDashes(String(parsedRaw.growthOutlook || '')),
+            whyItFits: sanitizeNoEmDashes(String(parsedRaw.whyItFits || '')),
+            shadowProtection: sanitizeNoEmDashes(String(parsedRaw.shadowProtection || '')),
+            first90Days: Array.isArray(parsedRaw.first90Days)
+              ? parsedRaw.first90Days.map((s) => sanitizeNoEmDashes(String(s || '')))
+              : []
+          };
+          const validatedCard = CustomTarotCardSchema.safeParse(sanitizedCandidate);
+          if (validatedCard.success) {
+            customTarotCard = validatedCard.data;
+          }
+        }
+      } catch {
+        // Silently fall back to offline custom card already merged into updatedProfile
+      }
+    }
+
+    const parts = contentWithoutTarot.split(/---+\s*OPTIONS\s*---+/i);
     const replyText = (parts[0] || '').trim();
     let options = null;
 
@@ -1063,7 +1117,7 @@ ${textComfortDirective ? textComfortDirective : ''}
       }
     }
 
-    return { replyText, options };
+    return { replyText, options, customTarotCard };
   };
 
   const getDynamicQuickPrompts = () => {
@@ -1092,7 +1146,11 @@ ${textComfortDirective ? textComfortDirective : ''}
   };
 
   const buildValidatedReturn = (rawContent, mood = 'inspired', customPrompts = null, usedAi = true) => {
-    const { replyText, options } = parseReplyAndOptions(rawContent);
+    const { replyText, options, customTarotCard } = parseReplyAndOptions(rawContent);
+    if (customTarotCard && uncoveredInterest) {
+      updatedProfile = upsertCustomTarotCard(updatedProfile, customTarotCard, uncoveredInterest);
+      updatedDossier = generatePersonalizedDossier(updatedProfile);
+    }
     let cleanReply = sanitizeNoEmDashes(replyText || rawContent.trim());
     if (isDistressed && !/\b(take your time|overwhelming|slow breath|no rush)\b/i.test(cleanReply)) {
       cleanReply = sanitizeNoEmDashes(

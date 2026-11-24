@@ -29,6 +29,7 @@ export function createInitialSoulProfile() {
     discussedTopics: [],
     chatHighlights: [],
     chatTurnCount: 0,
+    customCards: [],
     arcade: {
       choices: [],
       scores: {
@@ -72,10 +73,11 @@ export function hasSoulActivity(profile) {
       profile.energyProfile?.teamMode
   );
   const hasTopics = (profile.discussedTopics?.length || 0) > 0;
+  const hasCustomCards = (profile.customCards?.length || 0) > 0;
   const hasArcade =
     Boolean(profile.arcade?.completed) || (profile.arcade?.choices?.length || 0) > 0;
 
-  return hasTraits || hasConstraints || hasEnergy || hasTopics || hasArcade;
+  return hasTraits || hasConstraints || hasEnergy || hasTopics || hasCustomCards || hasArcade;
 }
 
 const KNOWN_CITIES = ['San Francisco', 'London', 'Tokyo', 'New York', 'Digital Nomad'];
@@ -107,7 +109,14 @@ const TRAIT_PATTERNS = {
     { regex: /\b(lead|business|entrepreneur|startup|market|sell|sales|organize|event|manage|hospitality|ecommerce)\b/i, label: 'Entrepreneurship, Events & Leadership' },
     { regex: /\b(animal|vet|veterinar|wildlife|pet|zoolog|marine)\b/i, label: 'Animal Care & Wildlife Biology' },
     { regex: /\b(nature|environment|climate|biology|science|lab|space|outdoors|sustainab)\b/i, label: 'Natural Sciences & Sustainability' },
-    { regex: /\b(law|legal|paralegal|forensic|detective|criminolog|justice|investig)\b/i, label: 'Law, Forensics & Investigation' }
+    { regex: /\b(law|legal|paralegal|forensic|detective|criminolog|justice|investig)\b/i, label: 'Law, Forensics & Investigation' },
+    { regex: /\b(beauty|cosmetic|cosmetics|makeup|make-up|skincare|skin care|esthetician|aesthetician|hairstyl|barber|nail tech|salon|fragrance|perfume|lash tech|glam)\b/i, label: 'Beauty, Cosmetics & Makeup Artistry' },
+    { regex: /\b(fashion|stylist|apparel|clothing brand|tailor|sewing|runway|textile|streetwear)\b/i, label: 'Fashion Design & Styling' },
+    { regex: /\b(fitness|personal train|sports|athlet|physio|kinesiology|pilates|yoga|nutrition|dietitian|coach)\b/i, label: 'Sports, Fitness & Athletic Training' },
+    { regex: /\b(pilot|aviation|flight attendant|airline|aerospace|air traffic|aircraft)\b/i, label: 'Aviation & Flight Operations' },
+    { regex: /\b(real estate|realtor|property manage|interior design|architecture|home staging)\b/i, label: 'Real Estate & Interior Design' },
+    { regex: /\b(photograph|portrait|wedding photo|photojournal|cinematograph)\b/i, label: 'Photography & Visual Storytelling' },
+    { regex: /\b(florist|horticultur|botany|landscap|greenhouse|farming|agricultur)\b/i, label: 'Horticulture, Floral & Modern Agriculture' }
   ],
   strengths: [
     { regex: /\b(listen|empathetic|kind|support|understand|patient|caring|mediator|advice|therapist friend)\b/i, label: 'Deep Empathy & Peer Counseling' },
@@ -941,6 +950,510 @@ export const CAREER_ARCANA_CATALOG = [
   }
 ];
 
+// Built-in 14-card catalog coverage regex (if a message matches one of these core fields, the 14 classic cards already cover it)
+const BUILTIN_CATALOG_DOMAIN_REGEX =
+  /\b(electrician|hvac|plumb|weld|carpenter|mechanic|construction|skilled trade|robot|robotics|mechatronics|drone|circuit|electronics|cook|cooking|bak(e|ing)|chef|culinary|kitchen|software|coding|program(ming)?|web dev|app dev|game dev|cybersecurity|data analyst|finance|accounting|spreadsheet|logistics|supply chain|warehouse|forensic|paralegal|lawyer|legal|criminolog|nurse|nursing|radiolog|ultrasound|sonograph|paramedic|emt|medical|hospital|psycholog|therapist|counselor|mental health|social work|event planner|hospitality|hotel|sales|sdr|ux|ui\/?ux|figma|product design|video edit|brand market|creative director|veterinar|wildlife|marine bio)\b/i;
+
+// Common real-world career domains outside the 14 classic cards (instant offline quality + Cloud AI guidance)
+const UNCOVERED_CAREER_DOMAINS = [
+  {
+    key: 'beauty',
+    label: 'Beauty, Cosmetics & Makeup Artistry',
+    regex: /\b(beauty|cosmetic|cosmetics|makeup|make-up|skincare|skin care|esthetician|aesthetician|cosmetolog|hairstyl|barber|nail tech|salon|fragrance|perfume|lash tech|glam)\b/i,
+    arcanaTitle: 'The Glamour Alchemist',
+    careerTitle: 'Makeup Artist, Licensed Esthetician & Beauty Brand Specialist',
+    salaryRange: '$45k - $105k+',
+    growthOutlook: '+11% Steady Demand',
+    whyItFits: 'Turns your passion for beauty, cosmetics, and makeup artistry into hands-on client transformations, editorial looks, or your own indie beauty brand.',
+    shadowProtection: 'Avoids rigid 9-to-5 office monotony by letting you build flexible studio hours, freelance bookings, or product-led income streams.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Research state licensing hours for Cosmetology or Esthetics at a local accredited trade school or community college.',
+      'Build a 10-look before-and-after makeup or skincare portfolio on Instagram/TikTok using natural daylight.',
+      'Apply for a paid beauty counter advisor, salon assistant, or retail cosmetics role (Sephora, Ulta, or local studio) to earn while learning products.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Apply immediately to paid entry-level beauty retail or salon assistant roles to earn cash and get employee product discounts.',
+      'Compare low-cost community college esthetics/cosmetology certificate programs and state grant aid (skip expensive private beauty loans).',
+      'Start a weekend freelance makeup or brow/lash practice with friends to build a 10-client portfolio and first bookings.'
+    ]
+  },
+  {
+    key: 'fashion',
+    label: 'Fashion Design & Styling',
+    regex: /\b(fashion|stylist|apparel|clothing brand|tailor|sewing|runway|textile|streetwear|wardrobe|couture)\b/i,
+    arcanaTitle: 'The Sartorial Weaver',
+    careerTitle: 'Fashion Designer, Apparel Stylist & Independent Brand Founder',
+    salaryRange: '$48k - $115k+',
+    growthOutlook: '+9% Niche Expansion',
+    whyItFits: 'Channels your eye for clothing, silhouette, and personal style into commercial styling, technical apparel design, or direct-to-consumer streetwear.',
+    shadowProtection: 'Protects your creative vision from high-debt design schools by focusing on real garments, lookbooks, and paid retail/studio experience first.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Produce a 5-piece capsule lookbook or styled shoot using thrifted, altered, or custom-sewn pieces.',
+      'Apply for a paid visual merchandising, tailoring assistant, or boutique styling role to learn real retail operations.',
+      'Learn basic digital tech-pack creation (Canva, Illustrator, or CLO3D) so factories or clients can produce your designs.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Take a paid visual merchandising or local tailor-shop assistant job to earn immediately while learning fabric construction.',
+      'Launch a zero-inventory print-on-demand or upcycled capsule drop to validate real customer demand without debt.',
+      'Document your styling or sewing process on short-form video to attract local freelance styling clients.'
+    ]
+  },
+  {
+    key: 'fitness',
+    label: 'Sports, Fitness & Athletic Coaching',
+    regex: /\b(fitness|personal train|gym|sports|athlet|physio|physical therap|kinesiology|pilates|yoga|nutrition|dietitian|coach)\b/i,
+    arcanaTitle: 'The Kinetic Vanguard',
+    careerTitle: 'Certified Personal Trainer, Sports Coach & Athletic Wellness Specialist',
+    salaryRange: '$48k - $102k+',
+    growthOutlook: '+14% High Demand',
+    whyItFits: 'Turns your athletic drive and energy for movement into measurable client transformations, youth sports coaching, or physical wellness.',
+    shadowProtection: 'Keeps you completely off a draining 8-hour desk chair while allowing you to scale from 1-on-1 sessions into group classes or online coaching.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: true,
+    lowMathFriendly: true,
+    first90Days: [
+      'Enroll in a nationally recognized Personal Trainer certification (NASM, ACE, or ACSM) that can be completed in 8 to 12 weeks.',
+      'Work part-time at a local gym, sports clinic, or recreation center to build client rapport and learn floor operations.',
+      'Coach 3 volunteer friends through a structured 4-week workout log to build real testimonials and coaching confidence.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Get hired at a local gym or athletic club that reimburses or discounts your NASM/ACE certification.',
+      'Complete CPR/AED certification this month and begin assisting youth sports clinics or group fitness classes for paid hours.',
+      'Build a simple weekly mobility or strength content series to attract your first local 1-on-1 clients.'
+    ]
+  },
+  {
+    key: 'music',
+    label: 'Music Production & Audio Engineering',
+    regex: /\b(music produc|singer|songwriter|dj|audio engineer|sound design|musician|recording studio|composer|beatmaker)\b/i,
+    arcanaTitle: 'The Sonic Alchemist',
+    careerTitle: 'Audio Engineer, Music Producer & Live Sound Technician',
+    salaryRange: '$50k - $110k+',
+    growthOutlook: '+10% Creator Economy',
+    whyItFits: 'Combines your ear for rhythm, melody, and sound texture with practical studio production, live event sound, or commercial sync licensing.',
+    shadowProtection: 'Balances creative artistry with steady paid audio work (live venues, podcasts, game audio) so you never have to rely on viral luck alone.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Finish and release 3 polished tracks, mixes, or sound-design reels using a DAW (FL Studio, Ableton, or Logic Pro).',
+      'Reach out to local venues, churches, or AV rental companies for paid entry-level live sound or stagehand shifts.',
+      'Offer a clean mix/master or podcast audio edit for 2 local creators to build paid freelance proof-of-work.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Apply for paid local AV technician or venue sound crew shifts right away (no music school debt required).',
+      'Use free or student DAW tools to build a 3-track portfolio plus a 60-second podcast/video sound-cleanup demo.',
+      'Pitch local podcasters, YouTubers, or indie game teams on affordable per-episode audio mixing.'
+    ]
+  },
+  {
+    key: 'aviation',
+    label: 'Aviation & Flight Operations',
+    regex: /\b(pilot|aviation|flight attendant|airline|aerospace|air traffic|aircraft|airport)\b/i,
+    arcanaTitle: 'The Sky Navigator',
+    careerTitle: 'Commercial Aviation Specialist, Flight Crew & Air Operations Coordinator',
+    salaryRange: '$58k - $165k+',
+    growthOutlook: '+12% Global Demand',
+    whyItFits: 'Channels your fascination with flight, travel, and calm checklist precision into cockpit, cabin, dispatch, or aircraft operations.',
+    shadowProtection: 'Replaces repetitive desk work with clear safety standards, structured schedules, and real-world mobility.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: false,
+    first90Days: [
+      'Book an introductory discovery flight or tour a local airport FBO to compare Pilot, Aircraft Dispatcher, and Flight Attendant tracks.',
+      'Check FAA medical and age requirements plus airline-sponsored cadet scholarships or paid ground-crew pathways.',
+      'Apply for an entry-level airport ramp, gate, or customer operations role to earn flight benefits and industry seniority.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Apply for paid airline ground-crew, flight attendant, or airport operations roles that offer tuition support and travel benefits.',
+      'Research FAA Aircraft Dispatcher (6-week cert) or A&P aviation mechanic community college programs for high pay without massive flight-school loans.',
+      'Connect with a local airport mentor or EAA chapter to explore aviation scholarships.'
+    ]
+  },
+  {
+    key: 'real_estate',
+    label: 'Real Estate & Interior Design',
+    regex: /\b(real estate|realtor|property manage|interior design|architecture|home staging|broker)\b/i,
+    arcanaTitle: 'The Sanctuary Curator',
+    careerTitle: 'Interior Designer, Home Stager & Real Estate Property Specialist',
+    salaryRange: '$52k - $130k+',
+    growthOutlook: '+9% Steady Market',
+    whyItFits: 'Blends your taste for physical spaces, aesthetics, and practical negotiation into designing, staging, or managing real-world properties.',
+    shadowProtection: 'Gives you hands-on variety across properties and clients without locking you into a 4-year tuition debt trap.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: true,
+    lowMathFriendly: true,
+    first90Days: [
+      'Check your state real estate pre-licensing course (often 60 to 90 hours online) or a local home-staging assistant role.',
+      'Build 3 room-redesign mood boards or 3D floor plans using free tools (SketchUp Free or Planner 5D).',
+      'Apply for a paid leasing consultant or real estate coordinator role to earn steady hourly pay while learning the market.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Apply for a paid apartment leasing agent or property management assistant job (steady hourly pay plus commissions, no degree required).',
+      'Complete an affordable online state real estate license course only after shadowing a local brokerage.',
+      'Offer low-cost room styling or staging help for 2 local listings or friends to build before-and-after portfolio photos.'
+    ]
+  },
+  {
+    key: 'education',
+    label: 'Education & Youth Teaching',
+    regex: /\b(teacher|teaching|professor|tutor|early childhood|school counselor|special ed|educator|classroom)\b/i,
+    arcanaTitle: 'The Lantern Keeper',
+    careerTitle: 'Educator, Instructional Coach & Youth Learning Specialist',
+    salaryRange: '$48k - $88k+',
+    growthOutlook: '+8% Essential Demand',
+    whyItFits: 'Turns your patience, clear explanation skills, and care for others into helping students unlock confidence and real-world skills.',
+    shadowProtection: 'Prevents educator burnout by exploring high-impact niches (tutoring, instructional design, edtech, or paraprofessional pathways) with clear boundaries.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: true,
+    lowMathFriendly: true,
+    first90Days: [
+      'Apply as a paid after-school tutor, paraprofessional, or substitute aide to test classroom energy right away.',
+      'Compare community college to state-university teaching transfer pathways and teacher loan-forgiveness grants.',
+      'Create 3 short explainer lessons or study guides in your strongest subject as teaching proof-of-work.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Start earning immediately as a paid paraprofessional, after-school program lead, or private tutor.',
+      'Research state-funded "Grow Your Own" teacher apprenticeships that pay you while covering certification tuition.',
+      'Log 20 hours of youth mentoring or tutoring to strengthen scholarship and district applications.'
+    ]
+  },
+  {
+    key: 'photography',
+    label: 'Photography & Visual Storytelling',
+    regex: /\b(photograph|portrait|wedding photo|photojournal|cinematograph|camera)\b/i,
+    arcanaTitle: 'The Light Catcher',
+    careerTitle: 'Commercial Photographer, Visual Storyteller & Content Producer',
+    salaryRange: '$46k - $108k+',
+    growthOutlook: '+9% Brand Demand',
+    whyItFits: 'Transforms your visual framing, lighting instincts, and storytelling eye into paid portraits, product shoots, and brand campaigns.',
+    shadowProtection: 'Protects your art from unpaid hustle by pairing creative shoots with repeatable commercial niches (products, local businesses, events).',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Curate a clean 15-photo online portfolio focused on one commercial niche (portraits, food/products, or local events).',
+      'Reach out to 3 established local photographers to work as a paid second shooter or lighting assistant.',
+      'Pitch 2 local cafes, salons, or boutiques a starter photo package for their website and social feeds.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Start with the camera or phone you already own plus free editing tools (Darktable or Lightroom Mobile) before buying gear.',
+      'Offer paid second-shooter or studio assistant support to local wedding/event photographers on weekends.',
+      'Deliver 2 mini product/brand shoots for local shops to earn your first paid testimonials.'
+    ]
+  },
+  {
+    key: 'journalism',
+    label: 'Journalism, Writing & Publishing',
+    regex: /\b(journalis|podcast|broadcast|anchor|reporter|author|novelist|publishing|screenwrit|copywrit)\b/i,
+    arcanaTitle: 'The Ink Chronicler',
+    careerTitle: 'Copywriter, Digital Journalist & Editorial Content Strategist',
+    salaryRange: '$52k - $115k+',
+    growthOutlook: '+8% Digital Media',
+    whyItFits: 'Turns your voice, curiosity, and knack for clear storytelling into paid articles, scripts, newsletters, or high-converting brand copy.',
+    shadowProtection: 'Gives you focused creative writing blocks and remote flexibility without draining nonstop sales calls.',
+    fastEarningFriendly: true,
+    handsOn: false,
+    deskHeavy: true,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Publish 4 sharp portfolio pieces (2 local/industry articles plus 2 website/newsletter copy rewrites) on a free portfolio site.',
+      'Pitch local newsletters, youth media outlets, or small businesses for paid freelance articles or copy edits.',
+      'Practice interviewing 2 local founders or creators to sharpen fast, accurate storytelling.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Build a free 4-sample writing portfolio this month (skip expensive journalism degrees until you test paid writing).',
+      'Apply for entry-level remote copywriting, community newsletter, or social captioning gigs.',
+      'Offer 2 local businesses a crisp landing-page rewrite to earn your first paid writing referrals.'
+    ]
+  },
+  {
+    key: 'agriculture',
+    label: 'Horticulture, Floral & Modern Agriculture',
+    regex: /\b(florist|floral|horticultur|botany|landscap|greenhouse|farming|agricultur|garden|agritech)\b/i,
+    arcanaTitle: 'The Verdant Steward',
+    careerTitle: 'Floral Designer, Greenhouse Specialist & Modern Horticulture Tech',
+    salaryRange: '$44k - $92k+',
+    growthOutlook: '+9% Sustainable Growth',
+    whyItFits: 'Pairs your love of plants, tactile craft, and living spaces with hands-on floral design, urban landscaping, or greenhouse production.',
+    shadowProtection: 'Replaces fluorescent-lit cubicles with active, sensory, hands-on work that keeps your mind grounded.',
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    first90Days: [
+      'Apply for a paid entry-level role at a local nursery, floral studio, botanical garden, or landscaping crew.',
+      'Create a 6-photo portfolio of floral arrangements, plant care setups, or small-space garden designs.',
+      'Check local community college horticulture or landscape certificates for fast, low-cost credentials.'
+    ],
+    budgetFriendlyFirst90Days: [
+      'Start earning immediately as a paid greenhouse, floral shop, or nursery assistant while learning plant care hands-on.',
+      'Take a low-cost state extension master gardener or community college horticulture course instead of a 4-year loan.',
+      'Offer weekend patio plant styling or seasonal floral arrangements locally to build side income.'
+    ]
+  }
+];
+
+const NON_CAREER_STOP_WORDS =
+  /\b(money|asap|bills|tuition|college|university|family|siblings|zip code|relocate|stay local|desk|screen|people|solo|team|meetings|soul dossier|crisis simulator|my matches|90-day|plan|safe career|parents|help|advice|stressed|overwhelmed|anxious|frustrated|cooked|nothing|not sure|no idea|anything|everything|something|working|job|jobs|career|careers|path|paths|life|future)\b/i;
+
+function toTitleCase(str) {
+  return String(str || '')
+    .trim()
+    .split(/\s+/)
+    .map((word) =>
+      word.length <= 2 && /^(of|in|to|or|by|at|on|an)$/i.test(word)
+        ? word.toLowerCase()
+        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    )
+    .join(' ');
+}
+
+/**
+ * Detects when a user's chat message expresses interest in a career/industry
+ * that is NOT already covered by the 14 built-in Tarot Career Arcana cards.
+ * Returns null if the message is meta/constraints-only or matches one of the 14 cards.
+ */
+export function detectUncoveredCareerInterest(userText) {
+  const clean = String(userText || '').trim();
+  if (!clean || clean.length < 4) return null;
+  if (/\[Observed/i.test(clean)) return null;
+  if (/^(hi|hey|hello|yo|sup|ok|okay|yes|no|thanks|thank you|open my soul dossier|play crisis simulator)/i.test(clean)) {
+    return null;
+  }
+
+  // 1. Check known uncovered domains first (highest precision, e.g., beauty/cosmetics/makeup)
+  for (const domain of UNCOVERED_CAREER_DOMAINS) {
+    if (domain.regex.test(clean)) {
+      return {
+        key: domain.key,
+        label: domain.label,
+        rawPhrase: clean.slice(0, 100),
+        domainPreset: domain
+      };
+    }
+  }
+
+  // 2. If it already matches one of the 14 classic catalog fields, let the 14 built-in cards handle it
+  if (BUILTIN_CATALOG_DOMAIN_REGEX.test(clean)) {
+    return null;
+  }
+
+  // 3. Open-ended career/interest phrase extraction for ANY other niche field
+  const openPatterns = [
+    /(?:interested in|passionate about|curious about|into|love|enjoy|dream of being|want to be|wanna be|want to work in|want to get into|want to pursue|career in|job in|work in|line of|field of|industry of)\s+(?:the\s+)?(?:a\s+|an\s+)?([a-z][a-z0-9\s,&/-]{2,44}?)(?:\s+(?:line|field|industry|career|sector|space|business|work))?(?:[.,!?;]|$|\s+(?:and i|but|because|since|however|so i|though))/i
+  ];
+
+  for (const rx of openPatterns) {
+    const match = clean.match(rx);
+    if (match && match[1]) {
+      const candidate = match[1]
+        .replace(/^(the|a|an|my|some|more|doing|being|becoming|studying|learning)\s+/i, '')
+        .replace(/\s+(stuff|things|area|side|part)$/i, '')
+        .trim();
+
+      if (
+        candidate.length >= 3 &&
+        candidate.length <= 44 &&
+        !NON_CAREER_STOP_WORDS.test(candidate) &&
+        !BUILTIN_CATALOG_DOMAIN_REGEX.test(candidate)
+      ) {
+        const key = candidate.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32);
+        if (key.length >= 3) {
+          return {
+            key,
+            label: toTitleCase(candidate),
+            rawPhrase: candidate,
+            domainPreset: null
+          };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+const CUSTOM_ARCANA_NUMERALS = ['XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+
+/**
+ * Synthesizes a clean, constraint-aware custom Tarot Career Arcana card locally
+ * when in Offline Mode (or as a guaranteed fallback if Cloud AI omits JSON).
+ */
+export function buildOfflineCustomTarotCard(interest, profile = null) {
+  if (!interest) return null;
+  const constraints = profile?.constraints || {};
+  const needBudgetFriendly = Boolean(
+    constraints.needMoneyNow || constraints.localOnly || constraints.highFamilyDuties
+  );
+  const preset = interest.domainPreset;
+
+  if (preset) {
+    return {
+      id: `custom-${preset.key}`,
+      arcanaNumber: 'XV',
+      arcanaTitle: preset.arcanaTitle,
+      careerTitle: preset.careerTitle,
+      salaryRange: preset.salaryRange,
+      growthOutlook: preset.growthOutlook,
+      arcadeTrait: 'Visionary',
+      secondaryTrait: 'Maker',
+      pathwayNames: [preset.label],
+      tags: ['custom', preset.key],
+      fastEarningFriendly: preset.fastEarningFriendly,
+      handsOn: preset.handsOn,
+      deskHeavy: preset.deskHeavy,
+      socialHeavy: preset.socialHeavy,
+      lowMathFriendly: preset.lowMathFriendly,
+      matchBase: 92,
+      whyItFits: preset.whyItFits,
+      shadowProtection: preset.shadowProtection,
+      first90Days: needBudgetFriendly ? preset.budgetFriendlyFirst90Days : preset.first90Days,
+      budgetFriendlyFirst90Days: preset.budgetFriendlyFirst90Days,
+      isCustom: true,
+      customInterestKey: preset.key,
+      customInterestLabel: preset.label
+    };
+  }
+
+  const label = interest.label || 'Specialized Creative & Applied Craft';
+  const budgetSteps = [
+    `Apply for a paid entry-level assistant, apprentice, or junior support role in ${label} locally so you earn immediately while learning.`,
+    `Research short local certificates, community college tracks, or mentorships in ${label} instead of taking on expensive 4-year out-of-state debt.`,
+    `Create 3 tangible proof-of-work samples or mini projects in ${label} over the next 30 days to show employers or freelance clients.`
+  ];
+  const standardSteps = [
+    `Interview or shadow 2 working professionals in ${label} to learn what the real day-to-day workflow and pay look like.`,
+    `Build 3 concrete proof-of-work portfolio pieces or hands-on projects in ${label} to prove your genuine skill early.`,
+    `Compare accredited local training programs, apprenticeships, and entry-level openings in ${label} before committing tuition.`
+  ];
+
+  return {
+    id: `custom-${interest.key}`,
+    arcanaNumber: 'XV',
+    arcanaTitle: 'The Bespoke Trailblazer',
+    careerTitle: `${label} Specialist & Emerging Practitioner`,
+    salaryRange: '$45k - $100k+',
+    growthOutlook: '+10% Niche Demand',
+    arcadeTrait: 'Visionary',
+    secondaryTrait: 'Maker',
+    pathwayNames: [label],
+    tags: ['custom', interest.key],
+    fastEarningFriendly: true,
+    handsOn: true,
+    deskHeavy: false,
+    socialHeavy: false,
+    lowMathFriendly: true,
+    matchBase: 92,
+    whyItFits: `Directly tailored to your stated interest in ${label}, translating your curiosity into practical entry pathways and real-world proof of work.`,
+    shadowProtection: `Keeps you aligned with what genuinely sparks your energy instead of forcing you into generic careers that drain your motivation.`,
+    first90Days: needBudgetFriendly ? budgetSteps : standardSteps,
+    budgetFriendlyFirst90Days: budgetSteps,
+    isCustom: true,
+    customInterestKey: interest.key,
+    customInterestLabel: label
+  };
+}
+
+/**
+ * Merges a validated custom Tarot Career Arcana card (from Cloud AI or offline synthesizer)
+ * into profile.customCards, keeping sequential Roman numerals (XV, XVI, XVII) and deduping cleanly.
+ */
+export function upsertCustomTarotCard(profile, rawCard, interest = null) {
+  if (!profile || !rawCard || !rawCard.careerTitle) return profile;
+
+  const key =
+    rawCard.customInterestKey ||
+    interest?.key ||
+    String(rawCard.careerTitle)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 32);
+
+  const id = rawCard.id || `custom-${key}`;
+  const cleanFirst90 = Array.isArray(rawCard.first90Days) && rawCard.first90Days.length >= 2
+    ? rawCard.first90Days.slice(0, 3)
+    : [
+        `Shadow or speak with 2 professionals working in ${rawCard.careerTitle} to confirm daily realities.`,
+        `Build 2 to 3 concrete starter portfolio pieces or hands-on projects this month.`,
+        `Compare paid apprenticeships, local certificates, and entry-level roles before taking on tuition debt.`
+      ];
+
+  const normalizedCard = {
+    id,
+    arcanaNumber: rawCard.arcanaNumber || 'XV',
+    arcanaTitle: String(rawCard.arcanaTitle || 'The Bespoke Trailblazer').trim(),
+    careerTitle: String(rawCard.careerTitle).trim(),
+    salaryRange: String(rawCard.salaryRange || '$45k - $100k+').trim(),
+    growthOutlook: String(rawCard.growthOutlook || '+10% Steady Demand').trim(),
+    arcadeTrait: rawCard.arcadeTrait || 'Visionary',
+    secondaryTrait: rawCard.secondaryTrait || 'Maker',
+    pathwayNames: dedupe([
+      ...(rawCard.pathwayNames || []),
+      interest?.label,
+      rawCard.careerTitle
+    ]),
+    tags: dedupe(['custom', key, ...(rawCard.tags || [])]),
+    fastEarningFriendly: rawCard.fastEarningFriendly ?? true,
+    handsOn: rawCard.handsOn ?? true,
+    deskHeavy: rawCard.deskHeavy ?? false,
+    socialHeavy: rawCard.socialHeavy ?? false,
+    lowMathFriendly: rawCard.lowMathFriendly ?? true,
+    matchBase: typeof rawCard.matchBase === 'number' ? rawCard.matchBase : 92,
+    whyItFits: String(rawCard.whyItFits || '').trim(),
+    shadowProtection: String(rawCard.shadowProtection || '').trim(),
+    first90Days: cleanFirst90,
+    budgetFriendlyFirst90Days: rawCard.budgetFriendlyFirst90Days || cleanFirst90,
+    isCustom: true,
+    customInterestKey: key,
+    customInterestLabel: interest?.label || rawCard.customInterestLabel || rawCard.careerTitle,
+    updatedAt: Date.now()
+  };
+
+  const existing = (profile.customCards || []).filter(
+    (c) =>
+      c.id !== normalizedCard.id &&
+      c.customInterestKey !== normalizedCard.customInterestKey &&
+      c.careerTitle.toLowerCase() !== normalizedCard.careerTitle.toLowerCase()
+  );
+
+  // Put newest custom card first, cap at 3 custom cards, and assign sequential XV / XVI / XVII
+  const nextCustomCards = [normalizedCard, ...existing].slice(0, 3).map((card, idx) => ({
+    ...card,
+    arcanaNumber: CUSTOM_ARCANA_NUMERALS[idx] || 'XV'
+  }));
+
+  return {
+    ...profile,
+    customCards: nextCustomCards
+  };
+}
+
 /**
  * Generates the unified, strictly aligned Soul Dossier from the live Soul Profile.
  * - If the user has NOT yet shared career/life signals in Chat AND has NOT played Crisis Simulator 3D,
@@ -1020,11 +1533,20 @@ export function generatePersonalizedDossier(profileOrTraits, conversationHistory
 
   const cityEconomics = constraints.city ? getCityData(constraints.city) : null;
 
-  // Score every Career Arcana card deterministically against ALL live user signals
-  const scoredCards = CAREER_ARCANA_CATALOG.map((card) => {
+  // Score all 14 classic Career Arcana cards + any custom Tarot cards generated for uncovered user interests
+  const candidateCatalog = [...(profile.customCards || []), ...CAREER_ARCANA_CATALOG];
+
+  const scoredCards = candidateCatalog.map((card, catalogIdx) => {
     let score = card.matchBase;
     const reasons = [];
     const alignmentBadges = [];
+
+    // 0. Custom Tarot Card synthesized directly from an uncovered career interest in chat
+    if (card.isCustom) {
+      // Most recently generated custom card gets slight priority among multiple custom cards
+      score += catalogIdx === 0 ? 4 : 2;
+      alignmentBadges.push('💬 Chat Aligned');
+    }
 
     // 1. Selected Pathway Card from Crisis Simulator 3D (strongest direct user intent)
     if (selectedPathway && card.pathwayNames?.includes(selectedPathway.name)) {
