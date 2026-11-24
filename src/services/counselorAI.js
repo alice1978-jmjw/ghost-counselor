@@ -58,6 +58,9 @@ export function sanitizeNoEmDashes(text) {
 export const MANDATORY_SAFETY_RESPONSE =
   "I am just a fun AI ghost, but it sounds like you need real help. Please talk to a trusted adult or reach out to a professional helpline immediately. You don't have to carry this alone.";
 
+export const HARMFUL_CONTENT_REFUSAL =
+  "I can't help with that topic. Please share genuine, safe interests, hobbies, or career goals you'd like to explore instead.";
+
 export const INITIAL_GREETING = {
   id: 'welcome-1',
   sender: 'ghost',
@@ -82,6 +85,21 @@ const CRISIS_PATTERNS = [
 export function isSafetyInterventionTriggered(userText) {
   if (!userText) return false;
   return CRISIS_PATTERNS.some((pattern) => pattern.test(userText));
+}
+
+// Critical Policy: No-Reframing Harmful Content Blocker (Violence, animal cruelty, sexually explicit, illegal acts, hate speech)
+const HARMFUL_CONTENT_PATTERNS = [
+  // Violence, killing, harming people, weapons/terrorism, or animal cruelty
+  /\b(kill(ing)?\s+(people|someone|others|humans|kids|children|animals|dogs|cats|pets|birds)|murder(ing|er)?|assassina(te|ting|tion)|mass\s+shoot(ing|er)|school\s+shoot(ing|er)|stab(bing)?\s+(people|someone)|beat(ing)?\s+up\s+(people|someone)|hurt(ing)?\s+(people|someone|animals|dogs|cats|kids)|harm(ing)?\s+(people|someone|animals)|tortur(e|ing)|animal\s+(cruelty|abuse)|abusing\s+(animals|people|kids)|bomb\s*mak(ing|er)|make\s+a\s+bomb|terroris(m|t)|arson|kidnap(ping)?)\b/i,
+  // Sexually explicit content, pornography, or fetish content
+  /\b(porn(ography|ographic|hub|star)?|hentai|nsfw|onlyfans|fetish(es)?|bdsm|erotica|sex\s+work(er)?|prostitut(e|ion)|escort\s+service|stripper|stripping|camgirl|camboy|explicit\s+sex|sexual(ly)?\s+explicit|nude\s+photos|nudes|masturbat(e|ing|ion)|orgasm|blowjob|handjob|incest|pedophil|child\s+porn)\b/i,
+  // Illegal activities & hate speech
+  /\b(sell(ing)?\s+drugs|drug\s+deal(er|ing)|traffick(ing)?|human\s+trafficking|meth(amphetamine)?|cook(ing)?\s+meth|cocaine|heroin|fentanyl|steal(ing)?\s+(money|cars|credit\s+cards|identities)|identity\s+theft|credit\s+card\s+fraud|scam(ming)?\s+(people|elderly|others)|phish(ing)?\s+(people|victims)|money\s+launder(ing)?|counterfeit(ing)?|blackmail(ing)?|extort(ion|ing)|rob(bing)?\s+(banks|people|stores)|burglar(y|izing)|shoplift(ing)?|hate\s+speech|white\s+supremac|neo[- ]?nazi|ethnic\s+cleansing|genocide|nigg(er|a)s?|faggot|kike|spic|chink)\b/i
+];
+
+export function isHarmfulContentBlocked(userText) {
+  if (!userText) return false;
+  return HARMFUL_CONTENT_PATTERNS.some((pattern) => pattern.test(userText));
 }
 
 // Guardrail detector: "Crashing out" or aggressive frustration -> validate frustration & steer positively
@@ -950,6 +968,42 @@ export async function getGhostCounselorResponse({
     };
   }
 
+  // 1B. NO-REFRAMING HARMFUL CONTENT PRE-CHECK (Runs BEFORE trait extraction, Tarot generation, or AI calls)
+  if (isHarmfulContentBlocked(userMessage)) {
+    const unchangedDossier = generatePersonalizedDossier(baseProfile);
+    const refusalPrompts = [
+      "I'm interested in creative or hands-on careers 🎨",
+      "Which careers pay well with low debt? 💸",
+      "Help me discover my strengths and hobbies ✨",
+      "Play Crisis Simulator 3D 🕹️"
+    ];
+    const validatedRefusal = GhostResponseSchema.parse({
+      ghost_dialogue: HARMFUL_CONTENT_REFUSAL,
+      slang_used: false,
+      ego_damage_score: 1,
+      next_game_phase: stageIndex >= 2 ? 'assessment' : 'sorting',
+      suggested_action: refusalPrompts[0]
+    });
+    return {
+      reply: validatedRefusal.ghost_dialogue,
+      mood: 'empathetic',
+      updatedProfile: baseProfile,
+      updatedDossier: unchangedDossier,
+      updatedTraits: {
+        passions: baseProfile.passions,
+        strengths: baseProfile.strengths,
+        weaknesses: baseProfile.weaknesses
+      },
+      newlyAdded: { passions: [], strengths: [], weaknesses: [] },
+      quickPrompts: refusalPrompts,
+      shouldUnlockDossier: false,
+      isSafetyIntervention: false,
+      isHarmfulContentBlocked: true,
+      usedGemini: false,
+      ...validatedRefusal
+    };
+  }
+
   // 2. IMMEDIATELY UPDATE SOUL PROFILE & RECOMPUTE SOUL DOSSIER BEFORE GENERATING REPLY
   const { updatedProfile: extractedProfile, newlyAdded } = extractProfileUpdatesFromMessage(
     userMessage,
@@ -1048,7 +1102,18 @@ export async function getGhostCounselorResponse({
     ? `\n- STEP 4: Because the user expressed interest in "${uncoveredInterest.label}" (outside the 14 standard Tarot cards), on a new line after the 4 options output the exact separator ---TAROT_CARD--- followed by ONE valid JSON object (no markdown fences) matching {"arcanaTitle":"The ...","careerTitle":"...","salaryRange":"$XXk - $YYk+","growthOutlook":"+X% ...","whyItFits":"...","shadowProtection":"...","first90Days":["step 1","step 2","step 3"]}. Respect their financial/location constraints and use zero em dashes.`
     : '';
 
-  const fastSystemPrompt = `You are the "Friendly Ghost Counselor", a warm, empathetic, practical career and life advisor for high school graduates and young adults.
+  const fastSystemPrompt = `### SAFETY & CONTENT BOUNDARIES (HIGHEST PRIORITY)
+Before analyzing the user's input for career guidance, check if it contains:
+- Violence, killing, harming people, or animal cruelty
+- Sexually explicit content, pornography, or fetish content
+- Illegal activities, hate speech, or self-harm
+
+If ANY of these are detected:
+1. STOP immediately. Do NOT generate career options, traits, Tarot cards, or guidance.
+2. NEVER reframe or find a "positive" career equivalent for harmful input (for example, do NOT map violence to law enforcement, or animal cruelty to animal welfare).
+3. Respond only with a brief, neutral refusal asking the user to share genuine, safe interests or hobbies instead (and do NOT output ---TAROT_CARD---).
+
+You are the "Friendly Ghost Counselor", a warm, empathetic, practical career and life advisor for high school graduates and young adults.
 - Use light, natural Gen-Z slang sparingly (e.g. no cap, cooked, locked in, real talk, main character energy). Do NOT use the word "aura". Keep it strictly PG-13.
 - CRITICAL PUNCTUATION RULE: Do NOT use em dashes (—) or double hyphens (--) anywhere in your reply or options. Use standard commas, colons, or periods instead.
 - ${dossierPromptBlock}
@@ -1147,7 +1212,15 @@ ${textComfortDirective ? textComfortDirective : ''}
 
   const buildValidatedReturn = (rawContent, mood = 'inspired', customPrompts = null, usedAi = true) => {
     const { replyText, options, customTarotCard } = parseReplyAndOptions(rawContent);
-    if (customTarotCard && uncoveredInterest) {
+    const isModelRefusal =
+      /\b(can't help with that|cannot help with that|unable to help with that|genuine, safe interests|safe interests or hobbies)\b/i.test(
+        replyText || rawContent
+      );
+    if (isModelRefusal) {
+      // Do NOT save any extracted traits or custom Tarot cards when the LLM refused harmful input
+      updatedProfile = baseProfile;
+      updatedDossier = generatePersonalizedDossier(baseProfile);
+    } else if (customTarotCard && uncoveredInterest) {
       updatedProfile = upsertCustomTarotCard(updatedProfile, customTarotCard, uncoveredInterest);
       updatedDossier = generatePersonalizedDossier(updatedProfile);
     }

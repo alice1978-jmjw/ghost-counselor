@@ -45,7 +45,8 @@ Graduating high school students face intense anxiety ("feeling cooked") when dec
 
 #### Acceptance Criteria
 1. IF a user message matches any self-harm, suicide, or abuse crisis pattern THEN the system SHALL immediately halt normal persona slang and return the `MANDATORY_SAFETY_RESPONSE` directing the user to a trusted adult and emergency helpline resources (`988`).
-2. IF a user expresses acute frustration ("crashing out") THEN the system SHALL validate their feelings empathetically and steer the conversation toward constructive boundary-setting.
+2. IF a user message contains violence, killing, harming people, animal cruelty, sexually explicit/pornographic/fetish content, illegal activities, or hate speech THEN the system SHALL enforce the top-of-prompt **No-Reframing Safety Boundary** (`isHarmfulContentBlocked` pre-filter + `SAFETY & CONTENT BOUNDARIES (HIGHEST PRIORITY)` prompt rule), stop immediately without extracting traits or Tarot cards, never reframe harmful input into career paths, and return a brief neutral refusal (`HARMFUL_CONTENT_REFUSAL`).
+3. IF a user expresses acute frustration ("crashing out") THEN the system SHALL validate their feelings empathetically and steer the conversation toward constructive boundary-setting.
 
 ---
 

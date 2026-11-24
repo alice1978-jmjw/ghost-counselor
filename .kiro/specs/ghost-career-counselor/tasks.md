@@ -45,6 +45,8 @@
   - [x] Add `src/components/AiConsentModal.jsx` and enforce Cloud AI vs. 100% Offline mode inside `src/services/counselorAI.js`.
   - [x] Strip webcam biometric scores from outgoing cloud prompts, sanitize analytics events, and eliminate local guest PII storage.
   - [x] Add the **Spectral Note** AI guidance disclaimer to the Chat panel footer, Soul Dossier modal, Print/PDF output, and Markdown (`.md`) scroll export.
-- [x] **Task 5.3: Build-Time SHA-256 Static Auth & UI Polish**
+  - [x] Add top-of-prompt **No-Reframing Safety Boundary** (`SAFETY & CONTENT BOUNDARIES (HIGHEST PRIORITY)`) and deterministic `isHarmfulContentBlocked()` pre-filter in `src/services/counselorAI.js` to refuse violence, animal cruelty, explicit/fetish content, illegal acts, and hate speech without updating Soul Dossier traits or Tarot cards.
+- [x] **Task 5.3: Build-Time SHA-256 Static Auth, Kiro CLI Ghost Auditor & UI Polish**
   - [x] Hash private `JUDGE_PASSCODE` and `DEV_PASSCODE` env vars with salted SHA-256 at build time in `vite.config.js` and verify client-side via `src/utils/passcodeHash.js` (including private `?judge=` magic links).
+  - [x] Add read-only Kiro CLI custom agent `.kiro/agents/ghost-auditor.json` auditing all 8 safety, privacy, psychometric, and Tarot invariants from the terminal.
   - [x] Align Soul Dossier's pinned top-right close button (`X`) with Crisis Simulator 3D and streamline chat section headers.
